@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Reference Darkroom</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <style>
+    .library{display:flex;flex-direction:column;min-height:0}.library .filmstrip{flex:1;height:auto;min-height:0}.library .libhead,.library .rating{flex-shrink:0}.projectsPanel{padding:8px;border-bottom:1px solid #30353b}.projectsPanel label{display:block;color:#aaa;font-size:11px;margin-bottom:5px}.projectsPanel select{width:100%;padding:5px}.projectActions{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}.projectActions button{font-size:10px;padding:4px 6px}#saveStatus{font-size:10px;color:#aaa;margin-top:5px}.thumb.missing{opacity:.6}.thumb.missing img{visibility:hidden}
+    .libhead .viewButtons{display:flex;gap:3px;margin-left:auto;margin-right:5px}.libhead .viewButtons button{padding:4px 6px;font-size:9px}.filmstrip.gridMode{display:block;padding:5px}.filmstrip.gridMode .thumb{height:106px;aspect-ratio:auto;margin-bottom:7px}.filmstrip.gridMode .thumb img{display:block;width:100%;height:106px;object-fit:cover}.thumb .name{position:absolute;left:0;right:0;bottom:0;padding:18px 6px 5px;background:linear-gradient(transparent,#000d);color:#fff;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.thumb .meta{display:none}.filmstrip.listMode{display:block;padding:5px}.filmstrip.listMode .thumb{height:58px;aspect-ratio:auto;margin-bottom:5px;display:grid;grid-template-columns:76px 1fr;background:#111417}.filmstrip.listMode .thumb img{width:76px;height:54px;object-fit:cover}.filmstrip.listMode .thumb .name{position:static;align-self:center;padding:0 7px;background:none;color:#ddd;font-size:11px}.filmstrip.listMode .thumb .num{top:auto;right:7px;bottom:3px}.filmstrip.listMode .thumb .badge{left:82px}.filmstrip.loadingMore:after{content:'Loading more…';display:block;padding:10px;text-align:center;color:var(--muted)}
+  </style>
+  <link rel="stylesheet" href="/static/polish.css">
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="mark">RD</span><div><b>Reference Darkroom</b><small>non-destructive RAW editor</small></div></div>
+    <div class="sourcebar"><input id="sourcePath" spellcheck="false"><button id="openFolder">Open folder</button><span id="sourceStatus"></span></div>
+    <div class="actions"><button id="undo" title="Undo (⌘Z)">↶</button><button id="redo" title="Redo (⇧⌘Z)">↷</button><button id="before" class="compare">Before</button><button id="export" class="primary">Export JPG</button></div>
+  </header>
+  <main>
+    <aside class="library">
+      <div class="projectsPanel"><label for="projectList">Projects</label><select id="projectList"><option value="">Choose a project…</option></select><div class="projectActions"><button id="newProject">New project</button><button id="addFolder">Add folder</button><button id="reconnectProject">Reconnect</button></div><div id="saveStatus">Edits saved with each project</div></div>
+      <div class="libhead"><span><b id="photoCount">0</b> photos</span><div class="viewButtons"><button id="gridView" class="active" title="Large previews">▦</button><button id="listView" title="View filenames">Names</button></div><select id="filter"><option value="all">All</option><option value="picked">Picked</option><option value="unrated">Unrated</option><option value="rejected">Rejected</option></select></div>
+      <div id="filmstrip" class="filmstrip"></div>
+      <div class="rating"><button data-rating="-1">✕ Reject</button><button data-rating="0">Clear</button><button data-rating="1" title="Rate 1 star">1 ★</button><button data-rating="2" title="Rate 2 stars">2 ★</button><button data-rating="3" title="Rate 3 stars">3 ★</button><button data-rating="4" title="Rate 4 stars">4 ★</button><button data-rating="5" title="Rate 5 stars">5 ★</button></div>
+    </aside>
+    <section class="stage">
+      <div class="toolbar"><button data-tool="crop" class="active">Crop</button><button data-tool="mask">Local mask</button><button id="fit">Fit</button><button id="clipHighlights" title="Overlay pixels at or above display white">Highlight clipping</button><button id="clipShadows" title="Overlay pixels at sensor black">Shadow clipping</button><span id="liveStatus" class="liveStatus">Checking GPU…</span><span id="filename">Choose a photo</span></div>
+      <div id="viewport"><canvas id="canvas"></canvas><div id="loading">Rendering…</div><div id="empty"><b>Open a photo folder</b><span>RAW, JPEG, PNG and TIFF are supported.</span></div></div>
+      <div class="compareSlider"><span>Before</span><input id="split" type="range" min="0" max="100" value="50"><span>After</span></div><div id="clippingStats" class="clippingStats">Clipping analysis appears after rendering.</div>
+    </section>
+    <aside class="controls">
+      <details open><summary>Reference looks</summary><div id="presets" class="presetGrid"></div></details>
+      <details open><summary>Crop & geometry</summary><div class="aspects"><button data-aspect="free">Free</button><button data-aspect="1">1:1</button><button data-aspect="0.8">4:5</button><button data-aspect="0.6667">2:3</button><button data-aspect="1.7778">16:9</button><button id="resetCrop">Reset</button><button id="flipH">↔ Flip</button><button id="flipV">↕ Flip</button></div><div id="geometryControls"></div></details>
+      <details open><summary>Light</summary><div id="lightControls"></div></details>
+      <details><summary>Color</summary><div id="colorControls"></div></details>
+      <details><summary>Tone curve</summary><canvas id="curveCanvas" width="320" height="160"></canvas><div id="curveControls"></div></details>
+      <details><summary>Black & white</summary><label class="toggle"><input id="bw" type="checkbox"> Enable monochrome</label><div id="bwControls"></div></details>
+      <details><summary>Detail & effects</summary><div id="detailControls"></div></details>
+      <details id="maskPanel"><summary>Local dodge / burn</summary><div class="maskButtons"><button id="addEllipse">+ Ellipse</button><button id="addLinear">+ Linear</button><button id="deleteMask">Delete</button></div><select id="maskList" size="3"></select><div id="maskControls"></div></details>
+      <details><summary>Recipe</summary><div class="recipeButtons"><button id="copyRecipe">Copy</button><button id="pasteRecipe">Paste</button><button id="resetRecipe">Reset</button></div><small>Edits are stored as sidecar project data. Originals are never changed.</small></details>
+    </aside>
+  </main>
+  <div id="toast"></div>
+  <dialog id="projectDialog"><form id="projectForm"><h2 id="projectDialogTitle">New project</h2><label id="projectNameLabel">Project name <input id="projectName" placeholder="My shoot"></label><label>Photo folder <input id="projectFolder" placeholder="/Volumes/SU800/DCIM/100_FUJI" required></label><small id="projectHelp">Photos stay in their original folder. This project stores references and editing settings.</small><div id="projectError" role="alert"></div><menu><button type="button" id="cancelProject">Cancel</button><button class="primary" id="confirmProject" type="submit">Create project</button></menu></form></dialog>
+  <dialog id="exportDialog"><form method="dialog"><h2>Export full-resolution JPGs</h2><label>Export <select id="exportScope"><option value="current">Current photo</option><option value="picked">All picked photos</option><option value="visible">Visible photos</option></select></label><label>Destination folder <input id="exportPath" value="/Users/frank/Pictures/Reference Darkroom Exports"></label><label>Filename prefix <input id="exportPrefix" value="EDIT_"></label><label>JPEG quality <input id="exportQuality" type="range" min="75" max="100" value="96"><output id="qualityOut">96</output></label><div id="exportProgress"></div><menu><button value="cancel">Cancel</button><button id="startExport" value="noop" class="primary">Start export</button></menu></form></dialog>
+  <script src="/static/gpu-engine.js"></script>
+  <script src="/static/app.js"></script>
+  <script src="/static/brushes.js"></script>
+  <script src="/static/projects.js"></script>
+  <script src="/static/pairs.js"></script>
+  <script src="/static/library.js"></script>
+  <script src="/static/headroom.js"></script>
+  <script src="/static/resident.js"></script>
+  <script src="/static/library-progress.js"></script>
+</body></html>
