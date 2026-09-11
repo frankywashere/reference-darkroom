@@ -3,16 +3,56 @@
   const host=document.createElement('section');host.className='libraryWork';
   host.innerHTML='<div id="importWork" hidden><span id="importWorkText" role="status"></span><progress id="importWorkProgress"></progress><button id="cancelImportWork">Cancel import</button></div><div id="previewWorkText" role="status">Screen previews build as you browse.</div><button id="preparePreviews">Prepare project previews</button><button id="cancelPreviews" hidden>Stop preparing</button>';
   $('.projectsPanel').append(host);
-  const memory=new Map();let foreground=null,generation=0,background=null,idleTimer=0,saveTimer=0,allMode=false,importID=null;
-  const remember=(key,image,kind)=>{memory.delete(key);memory.set(key,{image,kind});while(memory.size>12)memory.delete(memory.keys().next().value);};
-  const localKey=(f,r)=>f.path+JSON.stringify(r);
-  async function lookup(f,r,signal){
+  const cacheStatus=document.createElement('small');cacheStatus.style.cssText='display:block;color:var(--muted);margin-top:6px';cacheStatus.setAttribute('role','status');host.append(cacheStatus);
+  const memory=new Map(),compressed=new Map();let foreground=null,generation=0,background=null,idleTimer=0,saveTimer=0,allMode=false,importID=null;
+  let decodedBytes=0,compressedBytes=0,warming=false,warmTimer=0,lastIndex=-1,direction=1,cacheProject=null;
+  const decodedLimit=256*1024**2,compressedLimit=192*1024**2;
+  const remember=(key,image,kind)=>{
+    decodedBytes-=memory.get(key)?.bytes||0;memory.delete(key);
+    const bytes=image.width*image.height*4;memory.set(key,{image,kind,bytes});decodedBytes+=bytes;
+    while(decodedBytes>decodedLimit&&memory.size>1){const first=memory.keys().next().value;decodedBytes-=memory.get(first).bytes;memory.delete(first);}
+  };
+  const rememberBlob=(key,blob,kind)=>{
+    compressedBytes-=compressed.get(key)?.blob.size||0;compressed.delete(key);compressed.set(key,{blob,kind});compressedBytes+=blob.size;
+    while(compressedBytes>compressedLimit&&compressed.size>1){const first=compressed.keys().next().value;compressedBytes-=compressed.get(first).blob.size;compressed.delete(first);}
+  };
+  const localKey=(f,r)=>state.projectId+f.path+JSON.stringify(r);
+  async function lookup(f,r,signal,decode=true){
+    const key=localKey(f,r),ready=memory.get(key);
+    if(ready&&decode){memory.delete(key);memory.set(key,ready);return ready;}
+    let packed=compressed.get(key);
+    if(!packed){
     const res=await fetch('/api/screen-preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:f.path,recipe:r}),signal});
     if(!res.ok)throw Error('Screen preview unavailable');
-    const im=await blobImage(await res.blob()),kind=res.headers.get('X-Preview-Kind');remember(localKey(f,r),im,kind);return {image:im,kind};
+    packed={blob:await res.blob(),kind:res.headers.get('X-Preview-Kind')};
+    if(signal?.aborted)throw new DOMException('Aborted','AbortError');rememberBlob(key,packed.blob,packed.kind);
+    }
+    if(!decode)return packed;
+    const im=await blobImage(packed.blob);remember(key,im,packed.kind);return {image:im,kind:packed.kind};
+  }
+  // One lightweight worker: direction-first decoded window, then project-wide
+  // compressed previews. No full RAW/GPU development in this queue.
+  const attempted=new Set();
+  async function warm(){
+    if(warming||!state.current||$('#exportDialog').open)return;
+    warming=true;const project=state.projectId;let more=true;
+    try{
+      const index=state.visible.indexOf(state.current),near=[];
+      for(let n=1;n<=12;n++)near.push(state.visible[index+n*direction]);
+      for(let n=1;n<=3;n++)near.push(state.visible[index-n*direction]);
+      const next=near.find(f=>f&&!f.missing&&!memory.has(localKey(f,photoState(f).recipe))&&(compressed.has(localKey(f,photoState(f).recipe))||!attempted.has(localKey(f,photoState(f).recipe))));
+      const f=next||state.files.find(f=>!f.missing&&!compressed.has(localKey(f,photoState(f).recipe))&&!attempted.has(localKey(f,photoState(f).recipe)));
+      if(!f){more=false;cacheStatus.textContent='Browsing previews prepared · '+memory.size+' ready in RAM';return;}
+      cacheStatus.textContent='Preparing browsing previews · '+memory.size+' ready in RAM';
+      const r=structuredClone(photoState(f).recipe),key=localKey(f,r);attempted.add(key);
+      try{await lookup(f,r,undefined,!!next);}catch(e){console.debug('Preview preparation skipped',f.name,e.message);}
+    }finally{warming=false;if(project===state.projectId&&more){clearTimeout(warmTimer);warmTimer=setTimeout(warm,80);}}
   }
   const show=(p,token)=>{if(token!==state.linearToken||state.linearReady)return;if(p.kind==='camera'&&state.after&&$('#liveStatus').textContent.startsWith('Saved'))return;state.after=p.image;$('#liveStatus').textContent=(p.kind==='edited'?'Saved edited preview':'Camera preview (before edits)')+' · loading editable photo…';drawCanvas();};
   window.loadScreenPreview=(f,token)=>{
+    if(cacheProject!==state.projectId){memory.clear();compressed.clear();attempted.clear();decodedBytes=compressedBytes=0;cacheProject=state.projectId;lastIndex=-1;}
+    const index=state.visible.indexOf(f);if(lastIndex>=0&&index!==lastIndex)direction=index>lastIndex?1:-1;lastIndex=index;
+    clearTimeout(warmTimer);warmTimer=setTimeout(warm,100);
     generation++;background?.abort();foreground?.abort();clearTimeout(idleTimer);clearTimeout(saveTimer);
     if(allMode){allMode=false;$('#previewWorkText').textContent='Preview preparation paused for browsing.';$('#cancelPreviews').hidden=true;}
     const r=structuredClone(recipe()),key=localKey(f,r),cached=memory.get(key);
@@ -24,7 +64,7 @@
     if(!keyRes.ok)throw Error('Could not identify preview');const {key}=await keyRes.json();
     const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.94));if(!blob)throw Error('Could not encode preview');
     const res=await fetch('/api/screen-preview/'+key,{method:'PUT',headers:{'Content-Type':'image/jpeg'},body:blob,signal});if(!res.ok)throw Error('Could not save preview');
-    remember(localKey(f,r),await blobImage(blob),'edited');
+    rememberBlob(localKey(f,r),blob,'edited');remember(localKey(f,r),await blobImage(blob),'edited');
   }
   const copyCanvas=im=>{const c=document.createElement('canvas'),s=Math.min(1,1800/Math.max(im.width,im.height));c.width=Math.max(1,Math.round(im.width*s));c.height=Math.max(1,Math.round(im.height*s));c.getContext('2d').drawImage(im,0,0,c.width,c.height);return c;};
   const render=renderHighBit;

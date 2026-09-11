@@ -15,10 +15,10 @@
   window.showImmediatePhoto=(f,token)=>{
     controller?.abort();clearTimeout(loadTimer);loadResolve?.();loadResolve=null;cancelAnimationFrame(frame);frame=0;
     state.previewController?.abort();clearTimeout(state.previewTimer);state.previewTimer=null;
-    state.loadingPhoto=true;state.after=null;state.before=null;state.liveFrame=null;editable(false);
+    state.loadingPhoto=true;state.before=null;state.liveFrame=null;editable(false);
     const cached=previews.get(f.path);
     if(cached&&cached.key===JSON.stringify(recipe())){state.after=cached.image;status.textContent='Saved preview · loading editable photo…';}
-    else{status.textContent='Loading screen preview…';}
+    else{status.textContent=state.after?'Previous photo · loading next preview…':'Loading screen preview…';}
     window.loadScreenPreview?.(f,token);
     $('#loading').style.display='none';$('#clippingStats').textContent='Clipping analysis available when the editable photo is ready.';drawCanvas();
   };
@@ -27,6 +27,7 @@
     return new Promise(resolve=>{loadResolve=resolve;loadTimer=setTimeout(async()=>{
       const mine=controller=new AbortController();
       try{
+        while(window.photoNavigationHeld&&token===state.linearToken&&!mine.signal.aborted)await new Promise(r=>setTimeout(r,60));
         if(token!==state.linearToken)return;
         if(!(state.liveRenderer instanceof UnifiedPhotoRenderer))throw Error('GPU editor unavailable; reload the app.');
         const res=await fetch('/api/gpu-source?limit='+state.liveRenderer.limit+'&path='+encodeURIComponent(f.path),{signal:mine.signal});
@@ -37,7 +38,7 @@
         state.linearReady=true;state.loadingPhoto=false;editable(true);renderHighBit();
       }catch(e){if(token!==state.linearToken||e.name==='AbortError')return;state.linearReady=false;status.textContent='Photo unavailable for editing';toast(e.message);}
       finally{resolve();}
-    },100);});
+    },350);});
   };
   renderHighBit=function(){
     if(!state.current||!state.linearReady||exporting)return false;

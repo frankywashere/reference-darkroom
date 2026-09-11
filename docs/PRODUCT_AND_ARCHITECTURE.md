@@ -178,3 +178,18 @@ catalog backup. Do not publish runtime logs, API keys, or photo attachments.
 The localhost service currently has local-development trust assumptions. Public
 remote control requires authentication, authorization, request limits, explicit
 write approvals and a defined app command protocol first.
+# Browsing cache update
+
+Photo browsing uses a bounded 256 MiB decoded-preview cache and 192 MiB
+compressed-preview cache, in addition to the existing small recent-frame cache
+and GPU buffers. A lightweight worker prepares the next 12 visible photos in the
+travel direction and three behind, then visits the remaining project sources to
+populate the disk cache and compressed RAM cache. Camera previews are labeled as
+before-edits images; use **Prepare project previews** to develop saved-edit
+previews for the full project. Cache limits are not a total process-memory limit.
+
+Arrow-key holds defer foreground RAW decoding until release; other selections
+use a 350 ms settling delay. Cache misses retain the previous photo with an
+explicit loading label instead of blanking the canvas. View-only pinch zoom and
+two-finger pan do not modify recipes; **Fit** resets the view. The larger
+**Loading photo into GPU** indicator sits over the photo's upper-right corner.

@@ -21,8 +21,21 @@ const fs=require('fs'),path=require('path'),os=require('os');
  await page.waitForFunction(()=>state.after!==null,{timeout:30000});
  const ratio=await page.evaluate(()=>{const im=state.after;return (im.naturalWidth||im.width)/(im.naturalHeight||im.height);});
  if(Math.abs(ratio-1.5)>.001)throw Error('Screen preview aspect ratio incorrect: '+ratio);
+ await page.waitForFunction(()=>state.linearReady);
+ // Holding navigation must keep a useful frame and defer foreground decoding.
+ let rawRequests=0;const countRaw=req=>{if(req.url().includes('/api/gpu-source'))rawRequests++;};
+ page.on('request',countRaw);
+ await page.keyboard.down('ArrowDown');
+ for(let i=0;i<5;i++){await page.waitForTimeout(70);await page.keyboard.down('ArrowDown');}
+ await page.waitForTimeout(500);
+ const during=await page.evaluate(()=>({held:window.photoNavigationHeld,frame:!!state.after,ready:state.linearReady}));
+ if(!during.held||!during.frame||during.ready||rawRequests)throw Error('Rapid browsing started RAW work or blanked the frame: '+JSON.stringify({during,rawRequests}));
+ await page.keyboard.up('ArrowDown');
+ await page.waitForFunction(()=>state.linearReady,{timeout:30000});
+ page.off('request',countRaw);
+ if(rawRequests!==1)throw Error('Expected one RAW load after release, got '+rawRequests);
  await page.screenshot({path:'/tmp/darkroom-library-qa.png'});
- console.log(JSON.stringify({count:first.count,persistentCache:cached,ratio,errors,fixtureRoot:root}));
+ console.log(JSON.stringify({count:first.count,persistentCache:cached,ratio,rapidBrowsing:during,rawRequests,errors,fixtureRoot:root}));
  if(errors.length)throw Error(errors.join('; '));
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});
