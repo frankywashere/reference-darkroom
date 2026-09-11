@@ -180,13 +180,20 @@ remote control requires authentication, authorization, request limits, explicit
 write approvals and a defined app command protocol first.
 # Browsing cache update
 
-Photo browsing uses a bounded 256 MiB decoded-preview cache and 192 MiB
+Photo browsing uses a bounded 2 GiB decoded-preview cache and 192 MiB
 compressed-preview cache, in addition to the existing small recent-frame cache
 and GPU buffers. A lightweight worker prepares the next 12 visible photos in the
 travel direction and three behind, then visits the remaining project sources to
 populate the disk cache and compressed RAM cache. Camera previews are labeled as
 before-edits images; use **Prepare project previews** to develop saved-edit
 previews for the full project. Cache limits are not a total process-memory limit.
+
+The rolling worker's deadline is not postponed by navigation. Successful
+whole-project preparation does not prevent fetching an evicted near-window
+preview again. Failed sources use a 30-second retry cooldown; project changes
+discard old in-flight lookup results. The decoded limit is an on-demand ceiling,
+not an upfront reservation. `node photo_editor/test_preview_rolling.cjs` tests
+sustained cycling, eviction from both caches, direction reversal, and byte limits.
 
 Arrow-key holds defer foreground RAW decoding until release; other selections
 use a 350 ms settling delay. Cache misses retain the previous photo with an
