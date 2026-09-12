@@ -4,7 +4,7 @@ const defs={
  geometry:[['straighten','Straighten',-15,15,.1],['rotation','Rotate',-180,180,90]],
  light:[['exposure','Exposure (EV)',-5,5,.05],['contrast','Contrast',-100,100,1],['highlights','Highlights',-100,100,1],['shadows','Shadows',-100,100,1],['whites','Whites',-100,100,1],['blacks','Blacks',-100,100,1]],
  color:[['temperature','Temperature',-100,100,1],['tint','Tint',-100,100,1],['saturation','Saturation',-100,100,1],['vibrance','Vibrance',-100,100,1]],
- detail:[['clarity','Clarity',-100,100,1],['dehaze','Dehaze',-100,100,1],['sharpen','Sharpen',0,100,1],['denoise','Color NR',0,100,1],['grain','Grain',0,100,1],['vignette','Vignette',0,100,1]],
+ detail:[['clarity','Clarity',-100,100,1],['dehaze','Dehaze',-100,100,1],['sharpen','Sharpen',0,100,1],['denoise','Color NR',0,100,1],['grain','Grain',0,100,1],['vignette','Vignette',0,200,1]],
  bw:[['bw_red','Red mix',0,100,1],['bw_green','Green mix',0,100,1],['bw_blue','Blue mix',0,100,1]],
  curve:[['curve.0','Black point',0,100,1],['curve.1','Shadows',0,100,1],['curve.2','Midtones',0,100,1],['curve.3','Highlights',0,100,1],['curve.4','White point',0,100,1]],
  mask:[['mask.exposure','Exposure',-3,3,.05],['mask.saturation','Saturation',-100,100,1],['mask.temperature','Temperature',-100,100,1],['mask.feather','Feather',0,100,1],['mask.width','Width',.03,1,.01],['mask.height','Height',.03,1,.01],['mask.angle','Angle',-180,180,1]]};

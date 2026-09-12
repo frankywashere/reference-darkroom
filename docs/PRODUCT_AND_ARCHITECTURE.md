@@ -203,6 +203,11 @@ RAW analysis. `test_camera_default.cjs` verifies defaults and saved off choices.
 
 # Browsing cache update
 
+The **Detail & effects → Vignette** slider now ranges from 0 to 200. Values
+0–100 retain the previous appearance; values above 100 progressively darken the
+edges further with a positive exponential falloff, leaving the central region
+unchanged. GPU preview/export and legacy CPU finishing use the same extension.
+
 Photo browsing uses a bounded 2 GiB decoded-preview cache and 192 MiB
 compressed-preview cache, in addition to the existing small recent-frame cache
 and GPU buffers. A lightweight worker prepares the next 12 visible photos in the

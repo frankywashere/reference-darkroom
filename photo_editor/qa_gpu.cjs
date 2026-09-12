@@ -6,7 +6,7 @@ const fs=require('fs');
  const page=await browser.newPage({viewport:{width:1000,height:700}});
  page.on('console',m=>{if(m.type()==='error')console.error(m.text())});
  page.on('pageerror',e=>console.error(e));
- await page.goto('http://127.0.0.1:8765/static/qa-gpu.html');
+ await page.goto((process.env.QA_BASE_URL||'http://127.0.0.1:8765')+'/static/qa-gpu.html');
  const result=await page.evaluate(async()=>{
    const r=new UnifiedPhotoRenderer(),w=128,h=96,src=new Float32Array(w*h*4);
    for(let y=0;y<h;y++)for(let x=0;x<w;x++){let i=(y*w+x)*4;src[i]=.01+x/w*.5;src[i+1]=.02+y/h*.4;src[i+2]=.1;src[i+3]=1;}
@@ -19,6 +19,9 @@ const fs=require('fs');
    if(!camera.bytes.some((v,i)=>Math.abs(v-a.bytes[i])>10))throw Error('Camera tone did not affect GPU output');
    const disabledCamera=render({...base,camera_look_enabled:false,camera_look:cameraProfile});
    if(disabledCamera.bytes.some((v,i)=>v!==a.bytes[i]))throw Error('Disabled camera tone changed pixels');
+   const v100=render({...base,vignette:100}),v200=render({...base,vignette:200}),mid=(48*w+64)*4;
+   if(v200.bytes[2]>=v100.bytes[2]/2)throw Error('Extended vignette not stronger at corner');
+   for(let c=0;c<3;c++)if(v200.bytes[mid+c]!==a.bytes[mid+c])throw Error('Vignette changed center');
    let inside=0,outside=0;
    for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=(y*w+x)*4,d=Math.max(...[0,1,2].map(c=>Math.abs(a.bytes[i+c]-b.bytes[i+c])));if(x<16||x>48||y<12||y>36)outside=Math.max(outside,d);else inside=Math.max(inside,d);}
    if(inside<10||outside>1)throw Error('Mask confinement failed '+inside+' / '+outside);

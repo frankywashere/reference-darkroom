@@ -74,7 +74,7 @@ class UnifiedPhotoRenderer {
           for(int i=1;i<=radius;i+=2){float a=exp(-.5*float(i*i)/(sigma*sigma)),b=i+1<=radius?exp(-.5*float((i+1)*(i+1))/(sigma*sigma)):0.;float w=a+b;vec2 d=direction*(float(i)+b/w);c+=(texture(image,uv+d).rgb+texture(image,uv-d).rgb)*w;sum+=2.*w;}c/=sum;
         }else if(op==5){c=fromLab(vec3(texture(aux,uv).r,c.gb));
         }else if(op==6){c=clamp(c+(c-texture(aux,uv).rgb)*amount,0.,1.);
-        }else if(op==7){float edge=pow(clamp((length((uv-.5)*2.)-.25)/1.1,0.,1.),1.6);c*=1.-edge*vignette*.0065;
+        }else if(op==7){float edge=pow(clamp((length((uv-.5)*2.)-.25)/1.1,0.,1.),1.6);c*=(1.-edge*min(vignette,100.)*.0065)*exp2(-edge*max(vignette-100.,0.)*.04);
           float envelope=sqrt(clamp(1.-abs(lum(c)-.5),.25,1.));c+=noise(floor(uv*outputSize/referenceScale))*grain*.00045*envelope;c=clamp(c,0.,1.);
         }else if(op==8){c=texture(image,crop.xy+uv*crop.zw).rgb;
         }else if(op==9){float hi=max(max(c.r,c.g),c.b),lo=lum(c);c=vec3(hi>=1.?1.:0.,lo<=.0005?1.:0.,hi>=1.&&min(min(c.r,c.g),c.b)<1.?1.:0.);

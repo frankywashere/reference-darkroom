@@ -412,7 +412,9 @@ def _finish(rgb: np.ndarray, r: dict[str, Any], seed: int) -> np.ndarray:
         yy = np.linspace(-1, 1, h, dtype=np.float32)[:, None]
         xx = np.linspace(-1, 1, w, dtype=np.float32)[None, :]
         edge = np.clip((np.sqrt(xx * xx + yy * yy) - .25) / 1.1, 0, 1) ** 1.6
-        rgb *= 1 - edge[..., None] * vignette * .65
+        # Preserve 0–100 exactly; stronger values approach black smoothly,
+        # without negative multipliers or changing the center of the image.
+        rgb *= (1 - edge[..., None] * min(vignette, 1) * .65) * np.exp2(-edge[..., None] * max(vignette - 1, 0) * 4)
     grain = max(float(r["grain"]), 0) / 100
     if grain:
         rng = np.random.default_rng(seed)
