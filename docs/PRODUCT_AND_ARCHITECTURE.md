@@ -210,7 +210,10 @@ against the expanded rotated bounds. Crop zoom sits directly below Straighten;
 it changes the saved crop rectangle and therefore the JPG export. **Auto-fill**
 shrinks the rectangle until all four corners fit inside the rotated source,
 including an edge sampling margin. Drag the frame to recompose, use its corner
-handles to resize, and choose **Done cropping** to see the cropped image. Trackpad
+handles to resize, and choose **Done cropping** to see the cropped image.
+Crop gestures end on mouse release anywhere in the window, capture loss, focus
+loss, or Escape; pointer movement without the button held cannot resize a crop.
+Trackpad
 pinch remains view magnification. Crop zoom and frame information persist in the
 recipe; the existing `crop` field remains the authority for export and CPU paths.
 

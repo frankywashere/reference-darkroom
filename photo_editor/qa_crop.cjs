@@ -4,6 +4,19 @@ const {chromium}=require('/tmp/darkroom-gpu-test/node_modules/playwright');
  const browser=await chromium.launch({executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true,args:['--use-angle=metal']});
  const page=await browser.newPage({viewport:{width:1400,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:8766');await page.waitForFunction(()=>state.linearReady);
+ for(const ending of ['release','outside','capture-loss','blur']){
+   await page.evaluate(()=>{recipe().crop=[.15,.15,.7,.7];delete recipe().crop_frame;recipe().crop_aspect='free';setTool('crop');renderHighBit();});
+   const box=await page.locator('#canvas').boundingBox(),x=box.x+box.width*.15,y=box.y+box.height*.15;
+   await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+30,y+25,{steps:3});
+   if(await page.evaluate(()=>recipe().crop[0]===.15))throw Error('Crop corner did not drag');
+   if(ending==='outside'){await page.mouse.move(10,10);await page.mouse.up();}
+   else if(ending==='release')await page.mouse.up();
+   else if(ending==='blur')await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+   else await page.evaluate(()=>{const canvas=document.querySelector('#canvas');canvas.dispatchEvent(new PointerEvent('lostpointercapture',{pointerId:1,bubbles:true}));});
+   const stopped=await page.evaluate(()=>JSON.stringify(recipe().crop));
+   await page.mouse.move(x+70,y+60,{steps:3});await page.mouse.up();
+   if(await page.evaluate(()=>JSON.stringify(recipe().crop))!==stopped)throw Error('Sticky crop after '+ending);
+ }
  await page.click('[data-aspect="0.8"]');await page.waitForFunction(()=>state.tool==='crop');
  const ratio=await page.evaluate(()=>{const b=CropMath.bounds(state.sourceInfo.width,state.sourceInfo.height,recipe());return recipe().crop[2]*b.w/(recipe().crop[3]*b.h)});
  if(Math.abs(ratio-.8)>1e-6)throw Error('4:5 incorrect');
