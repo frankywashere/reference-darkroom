@@ -12,12 +12,16 @@ const fs=require('fs'),path=require('path'),os=require('os');
  const data=await page.evaluate(async root=>{const p=await projectRequest('/api/projects',{name:'Library QA'});await useProject(p);await startProgressiveImport(root);return p;},root);
  await page.waitForFunction(()=>document.querySelector('#importWorkText').textContent.includes('Import complete'),{timeout:60000});
  await page.waitForFunction(()=>state.linearReady,{timeout:60000});
+ // Camera tone is recipe data, independently saved for each photo.
+ await page.evaluate(()=>{recipe().camera_look={version:1,ev:.4,gamma:.9};recipe().camera_look_enabled=true;refreshControls();changed(true)});
+ await page.waitForFunction(()=>document.querySelector('#saveStatus').textContent.includes('All edits saved'));
  await page.waitForFunction(()=>document.querySelector('#previewWorkText').textContent.includes('saved'),{timeout:30000});
  const first=await page.evaluate(()=>({count:state.files.length,width:state.sourceInfo.width,height:state.sourceInfo.height,recipe:recipe(),file:state.current,project:state.projectId}));
  if(first.count!==36||first.width!==2400||first.height!==1600)throw Error('Import or native dimensions incorrect');
  const cached=await page.evaluate(async f=>{const res=await fetch('/api/screen-preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:f.file.path,recipe:f.recipe})});return res.headers.get('X-Preview-Kind');},first);
  if(cached!=='edited')throw Error('Edited preview did not persist');
  await page.reload();await page.waitForFunction(()=>state.current!==null);
+ if(!await page.evaluate(()=>recipe().camera_look_enabled&&recipe().camera_look.ev===.4&&document.querySelector('#cameraLookToggle').checked))throw Error('Camera tone recipe/toggle did not survive reload');
  await page.waitForFunction(()=>state.after!==null,{timeout:30000});
  const ratio=await page.evaluate(()=>{const im=state.after;return (im.naturalWidth||im.width)/(im.naturalHeight||im.height);});
  if(Math.abs(ratio-1.5)>.001)throw Error('Screen preview aspect ratio incorrect: '+ratio);

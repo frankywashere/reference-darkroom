@@ -22,12 +22,14 @@ class UnifiedPhotoRenderer {
       uniform vec4 crop;
       uniform vec3 bwWeights;
       uniform float exposure,contrast,highlights,shadows,whites,blacks,temperature,tint,saturation,vibrance;
+      uniform float cameraEV,cameraGamma;
       uniform float angle,curve[5],sigma,amount,localExposure,localSaturation,localTemperature,grain,vignette,referenceScale;
       float lum(vec3 c){return dot(c,vec3(.2126,.7152,.0722));}
       float srgb(float x){return x<=.0031308?12.92*x:1.055*pow(max(x,0.),1./2.4)-.055;}
       float lin(float x){return x<=.04045?x/12.92:pow((x+.055)/1.055,2.4);}
       vec3 temp(vec3 c,float t,float v){return clamp(c*vec3(1.+t*.0022+v*.0008,1.-abs(v)*.0004,1.-t*.0022+v*.0006),0.,32.);}
       vec3 develop(vec3 c){
+        if(cameraEV!=0.||cameraGamma!=1.){float cy=max(lum(c),0.);c*= (.18*pow(cy/.18,cameraGamma)*exp2(cameraEV))/max(cy,1e-12);}
         c=max(c*exp2(exposure),0.);c=.18*pow(c/.18,vec3(max(.15,1.+contrast*.008)));
         float y=lum(c),s=clamp(shadows*.01,-1.,1.),h=clamp(highlights*.01,-1.,1.);
         float x=clamp(y/.28,0.,1.),k=exp2(abs(s)*5.)-1.;
@@ -127,6 +129,7 @@ class UnifiedPhotoRenderer {
     if(this.targets[0]?.w!==w||this.targets[0]?.h!==h){this.targets.forEach(t=>this.remove(t));this.targets=Array.from({length:5},()=>this.target(w,h));this.clearMasks();}
     let [cur,next,temp,blur,flags]=this.targets;const swap=()=>{[cur,next]=[next,cur]};
     this.use(this.program);for(const k of ['exposure','contrast','highlights','shadows','whites','blacks','temperature','tint','saturation','vibrance'])this.uniform(k,+r[k]||0);
+    const cp=r.camera_look_enabled?r.camera_look:null;this.uniform('cameraEV',cp?Math.max(-3,Math.min(3,+cp.ev||0)):0);this.uniform('cameraGamma',cp?Math.max(.5,Math.min(1.8,+cp.gamma||1)):1);
     this.pass(0,this.source,cur,{sourceSize:[this.width,this.height],outputSize:[nativeW,nativeH],angle,flipH:r.flip_h?1:0,flipV:r.flip_v?1:0,grade:r.grade==='cinema'?1:r.grade==='faded'?2:0});
     for(const m of r.masks||[]){if(m.enabled===false)continue;const mask=this.mask(m,w,h);this.pass(1,cur,next,{invert:m.invert?1:0,amount:Math.max(0,Math.min(1,(m.amount??100)/100)),localExposure:+m.exposure||0,localSaturation:+m.saturation||0,localTemperature:+m.temperature||0},null,mask);swap();}
     this.pass(9,cur,flags);

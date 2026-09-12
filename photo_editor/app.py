@@ -236,6 +236,16 @@ def screen_preview(req: StatsRequest):
     except (ValueError,OSError) as exc:raise HTTPException(400,str(exc))
 
 
+@app.post('/api/camera-look')
+async def camera_look_analysis(req: StatsRequest):
+    from camera_look import camera_look
+    try:
+        async with gpu_decode_lock:
+            return await run_in_threadpool(camera_look, req.path)
+    except Exception as exc:
+        raise HTTPException(400, str(exc))
+
+
 @app.post('/api/screen-preview-key')
 def screen_preview_key(req: StatsRequest):
     try:

@@ -14,6 +14,11 @@ const fs=require('fs');
    const base={...(await(await fetch('/api/config')).json()).default_recipe,denoise:0,sharpen:0};
    const render=recipe=>{r.render(recipe,0,{full:true});return r.pixels();};
    const a=render(base),b=render({...base,masks:[{type:'brush',strokes:[{size:.25,feather:60,flow:100,opacity:100,points:[[.25,.25]]}],exposure:1}]});
+   const cameraProfile={ev:.7,gamma:.8};
+   const camera=render({...base,camera_look_enabled:true,camera_look:cameraProfile});
+   if(!camera.bytes.some((v,i)=>Math.abs(v-a.bytes[i])>10))throw Error('Camera tone did not affect GPU output');
+   const disabledCamera=render({...base,camera_look_enabled:false,camera_look:cameraProfile});
+   if(disabledCamera.bytes.some((v,i)=>v!==a.bytes[i]))throw Error('Disabled camera tone changed pixels');
    let inside=0,outside=0;
    for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=(y*w+x)*4,d=Math.max(...[0,1,2].map(c=>Math.abs(a.bytes[i+c]-b.bytes[i+c])));if(x<16||x>48||y<12||y>36)outside=Math.max(outside,d);else inside=Math.max(inside,d);}
    if(inside<10||outside>1)throw Error('Mask confinement failed '+inside+' / '+outside);

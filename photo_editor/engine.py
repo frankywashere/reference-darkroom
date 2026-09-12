@@ -65,6 +65,7 @@ PRESETS: dict[str, dict[str, Any]] = {
 
 
 DEFAULT_RECIPE: dict[str, Any] = {
+    "camera_look_enabled": False, "camera_look": None,
     "preset": "neutral", "exposure": 0.0, "contrast": 0, "highlights": 0, "shadows": 0,
     "whites": 0, "blacks": 0, "temperature": 0, "tint": 0, "saturation": 0,
     "vibrance": 0, "clarity": 0, "dehaze": 0, "sharpen": 12, "denoise": 8,
@@ -175,7 +176,7 @@ def load_image(path: str | Path, max_side: int | None = None) -> LinearImage:
     return resize_linear(image, max_side)
 
 
-def embedded_thumbnail(path: str | Path, max_side: int = 420) -> Image.Image:
+def embedded_thumbnail(path: str | Path, max_side: int = 420, require_embedded: bool = False) -> Image.Image:
     source = Path(path).expanduser().resolve()
     if source.suffix.lower() in RAW_SUFFIXES:
         for tag in ("JpgFromRaw", "PreviewImage", "ThumbnailImage"):
@@ -187,6 +188,8 @@ def embedded_thumbnail(path: str | Path, max_side: int = 420) -> Image.Image:
                     return image
                 except Exception:
                     pass
+    if require_embedded:
+        raise ValueError('No usable embedded camera JPEG found in this RAW')
     return linear_to_pil(load_image(source, max_side=max_side).pixels)
 
 
@@ -224,6 +227,13 @@ def _smoothstep(edge0: float, edge1: float, values: np.ndarray) -> np.ndarray:
     return t * t * (3 - 2 * t)
 
 def _tone(rgb: np.ndarray, r: dict[str, Any]) -> np.ndarray:
+    profile = r.get('camera_look')
+    if r.get('camera_look_enabled') and isinstance(profile, dict):
+        y = np.maximum(_lum(rgb), 0)
+        ev = float(np.clip(profile.get('ev', 0), -3, 3))
+        gamma = float(np.clip(profile.get('gamma', 1), .5, 1.8))
+        mapped = .18 * np.power(y / .18, gamma) * 2**ev
+        rgb = rgb * (mapped / np.maximum(y, 1e-12))[..., None]
     # One shared processing model, irrespective of legacy recipe version tags.
     rgb = np.maximum(rgb * (2.0 ** float(r["exposure"])), 0)
     exponent = max(.15, 1 + float(r["contrast"]) * .008)

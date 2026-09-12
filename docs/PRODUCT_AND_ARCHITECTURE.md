@@ -178,6 +178,23 @@ catalog backup. Do not publish runtime logs, API keys, or photo attachments.
 The localhost service currently has local-development trust assumptions. Public
 remote control requires authentication, authorization, request limits, explicit
 write approvals and a defined app command protocol first.
+# Camera-inspired starting tone
+
+The editing panel has a per-photo **RAW starting look → Camera-inspired tone**
+toggle, off by default. The first activation analyzes a 640-pixel RAW decode and
+the embedded camera JPEG, fitting a bounded, monotonic luminance transform from
+tonal percentiles. It estimates brightness and contrast only: no manufacturer
+film-simulation color profile, sharpening, denoise, or local tone reconstruction
+is claimed. A missing JPEG or insufficient tonal variation reports an error.
+
+The fit and enabled flag live in the photo recipe, supporting undo, persistence,
+copy/paste, and preview-cache invalidation. The transform runs before ordinary
+adjustments in both GPU preview/export and legacy CPU processing. Turning it off
+restores the existing neutral starting tone without changing other sliders or
+the RAW. Existing edited photos are not changed automatically. Initial analysis
+can take a few seconds; subsequent toggles do not re-decode the RAW. A backend
+restart is required after installing this endpoint.
+
 # Browsing cache update
 
 Photo browsing uses a bounded 2 GiB decoded-preview cache and 192 MiB
