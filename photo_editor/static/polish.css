@@ -1,4 +1,5 @@
 /* Shared desktop layout and interaction polish. */
+.cropActions{display:flex;flex-wrap:wrap;gap:6px;padding:5px 0 10px}.cropActions button{font-size:11px;padding:4px 8px}.cropActions small{flex-basis:100%;color:var(--muted);font-size:10px;line-height:1.5}.aspects button[aria-pressed="true"]{background:var(--accent);color:#17120f;border-color:var(--accent)}
 /* Compact reset affordance; value remains immediately after its range input. */
 .slider.hasSliderReset{grid-template-columns:80px minmax(35px,1fr) 34px 22px;gap:5px}
 button.sliderReset{width:22px;min-width:22px;height:24px;min-height:24px;padding:3px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--muted);display:inline-grid;place-items:center}

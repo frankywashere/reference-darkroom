@@ -203,6 +203,32 @@ RAW analysis. `test_camera_default.cjs` verifies defaults and saved off choices.
 
 # Browsing cache update
 
+## Crop and straighten
+
+Ratio buttons activate a visible crop frame and calculate proportions in pixels
+against the expanded rotated bounds. Crop zoom sits directly below Straighten;
+it changes the saved crop rectangle and therefore the JPG export. **Auto-fill**
+shrinks the rectangle until all four corners fit inside the rotated source,
+including an edge sampling margin. Drag the frame to recompose, use its corner
+handles to resize, and choose **Done cropping** to see the cropped image. Trackpad
+pinch remains view magnification. Crop zoom and frame information persist in the
+recipe; the existing `crop` field remains the authority for export and CPU paths.
+
+Straighten/rotation pointer drags reuse fixed working buffers at up to a
+1600-pixel display preview, retaining the current editing operations. The final
+presentation maintains the rotated aspect even when working dimensions stay
+fixed. Release restores the selected Fit/Full-detail rendering dimensions.
+Exports always use native dimensions. Edited screen caches store the cropped
+result, including when the editor is showing the full crop/mask workspace.
+
+Validation: `test_crop_math.cjs` covers 720 ratio/orientation/position cases;
+`qa_crop.cjs` checks UI, save/reload, screen-cache and actual JPG crop agreement;
+`qa_gpu.cjs` checks buffer reuse and aspect preservation. A Chromium/Metal test
+on DSCF2876.RAF with clarity, denoise, sharpening and a brush mask measured median
+rotation frame times of about 30 ms before versus 13 ms during the fixed-buffer
+drag path (16 frames). This is a controlled browser measurement, not a guarantee
+of native-app frame rate on every recipe or machine.
+
 Each slider has a compact reset-arrow button beside its value, dimmed at its
 default. Tooltips and accessible labels name the setting and reset value. Recipe
 slider resets use the existing undo, save, and render path; brush settings,

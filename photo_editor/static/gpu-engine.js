@@ -124,7 +124,8 @@ class UnifiedPhotoRenderer {
     const g=this.gl;if(!this.source)throw Error('No source loaded');const angle=(+r.rotation||0)+(+r.straighten||0),a=angle*Math.PI/180;
     const nativeW=Math.max(1,Math.round(this.width*Math.abs(Math.cos(a))+this.height*Math.abs(Math.sin(a)))),nativeH=Math.max(1,Math.round(this.height*Math.abs(Math.cos(a))+this.width*Math.abs(Math.sin(a))));
     const side=options.full?Math.max(nativeW,nativeH):(options.side||Math.min(2560,Math.max(1200,Math.max($('#viewport')?.clientWidth||900,$('#viewport')?.clientHeight||900)*devicePixelRatio)));
-    const scale=Math.min(1,side/Math.max(nativeW,nativeH)),w=Math.max(1,Math.round(nativeW*scale)),h=Math.max(1,Math.round(nativeH*scale));
+    const scale=Math.min(1,side/Math.max(nativeW,nativeH)),displayW=Math.max(1,Math.round(nativeW*scale)),displayH=Math.max(1,Math.round(nativeH*scale));
+    const w=options.workSize?.width||displayW,h=options.workSize?.height||displayH;
     if(w>this.limit||h>this.limit)throw Error('Rotated photo exceeds GPU limit; reduce rotation or export size');
     if(this.targets[0]?.w!==w||this.targets[0]?.h!==h){this.targets.forEach(t=>this.remove(t));this.targets=Array.from({length:5},()=>this.target(w,h));this.clearMasks();}
     let [cur,next,temp,blur,flags]=this.targets;const swap=()=>{[cur,next]=[next,cur]};
@@ -144,7 +145,7 @@ class UnifiedPhotoRenderer {
     if(r.sharpen>0){gaussian(cur,.8*ref);this.pass(6,cur,next,{amount:r.sharpen*.01},blur);swap();}
     this.pass(7,cur,next,{grain:Math.max(0,r.grain||0),vignette:Math.max(0,r.vignette||0),outputSize:[w,h],referenceScale:ref});swap();
     if(clipMode){this.pass(10,cur,next,{clipMode},flags);swap();}
-    const crop=options.crop?(r.crop||[0,0,1,1]):[0,0,1,1];const cw=Math.max(1,Math.round(w*crop[2])),ch=Math.max(1,Math.round(h*crop[3]));
+    const crop=options.crop?(r.crop||[0,0,1,1]):[0,0,1,1];const cw=Math.max(1,Math.round(displayW*crop[2])),ch=Math.max(1,Math.round(displayH*crop[3]));
     if(this.canvas.width!==cw)this.canvas.width=cw;if(this.canvas.height!==ch)this.canvas.height=ch;
     this.pass(8,cur,null,{crop});this.last={cur,flags,w,h,crop,cw,ch};
     if(g.getError()!==g.NO_ERROR)throw Error('GPU render failed (memory or graphics context)');return this.canvas;

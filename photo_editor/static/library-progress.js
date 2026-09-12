@@ -88,8 +88,8 @@
   }
   const copyCanvas=im=>{const c=document.createElement('canvas'),s=Math.min(1,1800/Math.max(im.width,im.height));c.width=Math.max(1,Math.round(im.width*s));c.height=Math.max(1,Math.round(im.height*s));c.getContext('2d').drawImage(im,0,0,c.width,c.height);return c;};
   const render=renderHighBit;
-  renderHighBit=function(){const ok=render();if(ok&&!state.clipMode){clearTimeout(saveTimer);clearTimeout(idleTimer);const token=state.linearToken;
-    saveTimer=setTimeout(async()=>{if(token!==state.linearToken||!state.linearReady||state.clipMode)return;const f=state.current,r=structuredClone(recipe()),c=copyCanvas(state.liveFrame);
+  renderHighBit=function(){const ok=render();if(ok&&!state.clipMode&&!state.geometryPreview){clearTimeout(saveTimer);clearTimeout(idleTimer);const token=state.linearToken;
+    saveTimer=setTimeout(async()=>{if(token!==state.linearToken||!state.linearReady||state.clipMode||state.geometryPreview)return;const f=state.current,r=structuredClone(recipe()),c=window.copyEditedPreview?window.copyEditedPreview(state.liveFrame,r,state.liveRenderer.last):copyCanvas(state.liveFrame);
       try{await storeFrame(f,r,c);if(token===state.linearToken)$('#previewWorkText').textContent='Edited screen preview saved.';}catch(e){$('#previewWorkText').textContent='Preview cache unavailable; editing is unaffected.';}
     },700);
     if(!allMode)idleTimer=setTimeout(()=>prepare(false),1800);
@@ -110,7 +110,7 @@
           const res=await fetch('/api/gpu-source?limit='+renderer.limit+'&path='+encodeURIComponent(f.path),{signal:controller.signal});if(!res.ok)throw Error('RAW unavailable');
           const bytes=await res.arrayBuffer();if(token!==generation||controller.signal.aborted)break;
           renderer.setSource(bytes,+res.headers.get('X-Width'),+res.headers.get('X-Height'));
-          const c=copyCanvas(renderer.render(r,0,{side:1800}));await storeFrame(f,r,c,controller.signal);
+          const c=copyCanvas(renderer.render(r,0,{side:1800,crop:true}));await storeFrame(f,r,c,controller.signal);
         }done++;
       }catch(e){if(e.name==='AbortError')break;errors++;done++;}
       await new Promise(resolve=>setTimeout(resolve,100));

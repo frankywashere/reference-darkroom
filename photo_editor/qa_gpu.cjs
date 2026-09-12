@@ -19,6 +19,17 @@ const fs=require('fs');
    if(!camera.bytes.some((v,i)=>Math.abs(v-a.bytes[i])>10))throw Error('Camera tone did not affect GPU output');
    const disabledCamera=render({...base,camera_look_enabled:false,camera_look:cameraProfile});
    if(disabledCamera.bytes.some((v,i)=>v!==a.bytes[i]))throw Error('Disabled camera tone changed pixels');
+   // Straighten dragging reuses working buffers while presentation retains
+   // the correct rotated aspect. Settled/export renders use exact dimensions.
+   const work={width:w,height:h};let allocations=0;const allocate=r.target.bind(r);r.target=(...args)=>{allocations++;return allocate(...args)};
+   r.render(base,0,{side:128,workSize:work});allocations=0;
+   for(let angle=1;angle<=12;angle++){
+     const im=r.render({...base,straighten:angle},0,{side:128,workSize:work});
+     const a=angle*Math.PI/180,ratio=(w*Math.cos(a)+h*Math.sin(a))/(h*Math.cos(a)+w*Math.sin(a));
+     if(Math.abs(im.width/im.height-ratio)>.02)throw Error('Dragging distorted image proportions');
+   }
+   if(allocations!==0)throw Error('Straighten reallocated '+allocations+' working buffers');r.target=allocate;
+   r.render(base,0,{full:true});
    const v100=render({...base,vignette:100}),v200=render({...base,vignette:200}),mid=(48*w+64)*4;
    if(v200.bytes[2]>=v100.bytes[2]/2)throw Error('Extended vignette not stronger at corner');
    for(let c=0;c<3;c++)if(v200.bytes[mid+c]!==a.bytes[mid+c])throw Error('Vignette changed center');

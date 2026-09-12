@@ -7,8 +7,8 @@
   const editable=ready=>{$('.controls').inert=!ready;$('#canvas').style.pointerEvents=ready?'':'none';};
   window.rememberPhotoFrame=()=>{
     if(!state.current||!state.linearReady||!state.liveFrame)return;
-    const c=document.createElement('canvas'),im=state.liveFrame,s=Math.min(1,1800/Math.max(im.width,im.height));
-    c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+    const im=state.liveFrame,c=window.copyEditedPreview?window.copyEditedPreview(im,recipe(),state.liveRenderer.last):document.createElement('canvas');
+    if(!window.copyEditedPreview){const s=Math.min(1,1800/Math.max(im.width,im.height));c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);}
     previews.delete(state.current.path);previews.set(state.current.path,{image:c,key:JSON.stringify(recipe())});
     while(previews.size>16)previews.delete(previews.keys().next().value);
   };
@@ -44,11 +44,12 @@
     if(!state.current||!state.linearReady||exporting)return false;
     try{
       const start=performance.now(),r=recipe(),renderer=state.liveRenderer;
+      const work=state.geometryPreview,options={full:fullDetail&&!work,crop:state.tool==='edit',...(work?{side:work.side,workSize:work}:{})};
       if(state.compare){
-        const before=renderer.render({...state.config.default_recipe,rotation:r.rotation,straighten:r.straighten,flip_h:r.flip_h,flip_v:r.flip_v},0,{full:fullDetail});
+        const before=renderer.render({...state.config.default_recipe,rotation:r.rotation,straighten:r.straighten,flip_h:r.flip_h,flip_v:r.flip_v,crop:r.crop},0,options);
         const c=state.beforeCanvas||(state.beforeCanvas=document.createElement('canvas'));c.width=before.width;c.height=before.height;c.getContext('2d').drawImage(before,0,0);state.before=c;
       }
-      state.liveFrame=renderer.render(r,state.clipMode,{full:fullDetail});state.after=state.liveFrame;drawCanvas();
+      state.liveFrame=renderer.render(r,state.clipMode,options);state.after=state.liveFrame;drawCanvas();
       state.lastFrameMs=performance.now()-start;
       status.textContent=state.sourceInfo.width+' × '+state.sourceInfo.height+' · float32 GPU';
       status.title='Shared preview/export engine. Last displayed frame: '+state.lastFrameMs.toFixed(1)+' ms. '+renderer.canvas.width+' × '+renderer.canvas.height+' preview.';
