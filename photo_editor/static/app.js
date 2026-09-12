@@ -9,7 +9,7 @@ const defs={
  curve:[['curve.0','Black point',0,100,1],['curve.1','Shadows',0,100,1],['curve.2','Midtones',0,100,1],['curve.3','Highlights',0,100,1],['curve.4','White point',0,100,1]],
  mask:[['mask.exposure','Exposure',-3,3,.05],['mask.saturation','Saturation',-100,100,1],['mask.temperature','Temperature',-100,100,1],['mask.feather','Feather',0,100,1],['mask.width','Width',.03,1,.01],['mask.height','Height',.03,1,.01],['mask.angle','Angle',-180,180,1]]};
 function recipe(){if(!state.current)return structuredClone(state.config.default_recipe);return state.photos[state.current.id].recipe}
-function photoState(f){return state.photos[f.id]||(state.photos[f.id]={rating:0,recipe:structuredClone(state.config.default_recipe)})}
+function photoState(f){return state.photos[f.id]||(state.photos[f.id]={rating:0,recipe:{...structuredClone(state.config.default_recipe),camera_look_enabled:/\.(raf|nef|arw|cr2|cr3|dng)$/i.test(f.path)}})}
 function valueAt(obj,key){if(key.startsWith('curve.'))return obj.curve[+key.split('.')[1]];return obj[key]}
 function setAt(obj,key,val){if(key.startsWith('curve.'))obj.curve[+key.split('.')[1]]=val;else obj[key]=val}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.remove('show'),2300)}

@@ -81,6 +81,7 @@
         if(cancelExport)break;
         $('#exportProgress').textContent='Loading '+(i+1)+' of '+items.length+'…';
         try{
+          await window.ensureCameraLook?.(item,item.recipe);
           const res=await fetch('/api/gpu-source?limit='+renderer.limit+'&path='+encodeURIComponent(item.path));if(!res.ok)throw Error((await res.json()).detail);
           renderer.setSource(await res.arrayBuffer(),+res.headers.get('X-Width'),+res.headers.get('X-Height'));
           if(cancelExport)break;

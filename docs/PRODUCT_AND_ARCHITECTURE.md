@@ -181,7 +181,9 @@ write approvals and a defined app command protocol first.
 # Camera-inspired starting tone
 
 The editing panel has a per-photo **RAW starting look → Camera-inspired tone**
-toggle, off by default. The first activation analyzes a 640-pixel RAW decode and
+toggle, on by default for newly initialized RAW photo recipes (existing saved
+choices remain unchanged; JPG defaults off). First opening a new RAW automatically
+analyzes a 640-pixel RAW decode and
 the embedded camera JPEG, fitting a bounded, monotonic luminance transform from
 tonal percentiles. It estimates brightness and contrast only: no manufacturer
 film-simulation color profile, sharpening, denoise, or local tone reconstruction
@@ -194,6 +196,10 @@ restores the existing neutral starting tone without changing other sliders or
 the RAW. Existing edited photos are not changed automatically. Initial analysis
 can take a few seconds; subsequent toggles do not re-decode the RAW. A backend
 restart is required after installing this endpoint.
+
+Export and explicit project-preview preparation also resolve a missing enabled
+camera-tone fit before rendering. Lightweight browsing prefetch does not trigger
+RAW analysis. `test_camera_default.cjs` verifies defaults and saved off choices.
 
 # Browsing cache update
 

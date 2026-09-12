@@ -102,7 +102,8 @@
       if(token!==generation||controller.signal.aborted)break;
       const r=structuredClone(photoState(f).recipe);$('#previewWorkText').textContent='Preparing '+(all?'project':'nearby')+' previews — '+done+' of '+files.length;
       try{
-        // Fetch/cache the larger embedded preview before doing any RAW development.
+        // Resolve tone first so an edited preview uses the complete recipe key.
+        await window.ensureCameraLook?.(f,r);
         const p=await lookup(f,r,controller.signal);
         if(p.kind!=='edited'){
           renderer ||= new UnifiedPhotoRenderer();
