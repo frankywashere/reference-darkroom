@@ -1,4 +1,11 @@
 /* Shared desktop layout and interaction polish. */
+/* Compact reset affordance; value remains immediately after its range input. */
+.slider.hasSliderReset{grid-template-columns:80px minmax(35px,1fr) 34px 22px;gap:5px}
+button.sliderReset{width:22px;min-width:22px;height:24px;min-height:24px;padding:3px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--muted);display:inline-grid;place-items:center}
+button.sliderReset svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+button.sliderReset:disabled{opacity:.2}
+button.sliderReset:hover:not(:disabled){color:var(--text);background:#343a40;border-color:#535b62}
+.rangeResetGroup{display:flex;align-items:center;gap:6px;min-width:0}.rangeResetGroup input[type=range]{flex:1;min-width:0}
 :root{color-scheme:dark;--bg:#151719;--panel:#1b1e21;--line:#303438;--text:#eeeae5;--muted:#a3a7ab;--accent:#d6a476}
 html,body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:12px}
 button,input,select{border-radius:6px;transition:background .12s,border-color .12s}

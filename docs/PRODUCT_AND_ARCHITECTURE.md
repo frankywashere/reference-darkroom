@@ -203,6 +203,11 @@ RAW analysis. `test_camera_default.cjs` verifies defaults and saved off choices.
 
 # Browsing cache update
 
+Each slider has a compact reset-arrow button beside its value, dimmed at its
+default. Tooltips and accessible labels name the setting and reset value. Recipe
+slider resets use the existing undo, save, and render path; brush settings,
+comparison split, exposure sweep, and export quality reset independently too.
+
 The **Detail & effects → Vignette** slider now ranges from 0 to 200. Values
 0–100 retain the previous appearance; values above 100 progressively darken the
 edges further with a positive exponential falloff, leaving the central region
