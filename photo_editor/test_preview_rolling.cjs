@@ -21,6 +21,9 @@ function select(i){state.current=files[i];state.linearToken++;context.loadScreen
  // Navigation every 30 ms used to indefinitely postpone the 100 ms worker.
  for(let i=1;i<=60;i++){await advance(30);select(i);await flush()}
  const warmed=[...context.testCache.prepared];assert(warmed.length>=15,'worker starved during sustained cycling');
+ await advance(20000);
+ assert(context.testCache.decodedBytes>=1024**3,'idle warm-up did not reach 1 GiB');
+ assert(context.testCache.decodedBytes<1024**3+1800*1200*4,'idle warm-up unnecessarily decoded beyond target');
  // Evict a successfully prepared photo from BOTH actual caches via budget pressure.
  const c=context.testCache,key=c.localKey(files[61],{});await c.lookup(files[61],{});c.prepared.add(key);
  for(let i=0;i<260;i++){c.remember('pressure'+i,{width:1800,height:1200},'camera');c.rememberBlob('pressure'+i,{size:1024*1024},'camera')}
@@ -31,5 +34,8 @@ function select(i){state.current=files[i];state.linearToken++;context.loadScreen
  assert(requests.filter(p=>p==='/test/61').length>before,'evicted preview never re-fetched');assert(c.memory.has(key));
  // Reversal must move preloading behind the new position.
  select(59);await advance(400);assert(c.memory.has(c.localKey(files[58],{})),'direction reversal failed');
- console.log('PASS sustained rolling, double-cache eviction/reload, reversal, 2 GiB memory bound; warmed during cycling:',warmed.length);
+ state.projectId='small';state.files=state.visible=files.slice(0,5);select(0);await advance(2000);
+ assert.equal(c.memory.size,5,'small project must fully decode all available previews');
+ assert(c.decodedBytes<1024**3);
+ console.log('PASS 1 GiB idle warm-up, small project fully decoded, sustained rolling, eviction/reload, reversal, 2 GiB bound; warmed during cycling:',warmed.length);
 })().catch(e=>{console.error(e);process.exitCode=1});

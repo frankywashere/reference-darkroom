@@ -6,7 +6,7 @@
   const cacheStatus=document.createElement('small');cacheStatus.style.cssText='display:block;color:var(--muted);margin-top:6px';cacheStatus.setAttribute('role','status');host.append(cacheStatus);
   const memory=new Map(),compressed=new Map();let foreground=null,generation=0,background=null,idleTimer=0,saveTimer=0,allMode=false,importID=null;
   let decodedBytes=0,compressedBytes=0,warming=false,warmTimer=0,lastIndex=-1,direction=1,cacheProject=null;
-  const decodedLimit=2*1024**3,compressedLimit=192*1024**2;
+  const decodedTarget=1024**3,decodedLimit=2*1024**3,compressedLimit=192*1024**2;
   const remember=(key,image,kind)=>{
     decodedBytes-=memory.get(key)?.bytes||0;memory.delete(key);
     const bytes=image.width*image.height*4;memory.set(key,{image,kind,bytes});decodedBytes+=bytes;
@@ -30,7 +30,8 @@
     if(!decode)return packed;
     const im=await blobImage(packed.blob);if(project!==state.projectId)throw new DOMException('Aborted','AbortError');remember(key,im,packed.kind);return {image:im,kind:packed.kind};
   }
-  // One lightweight worker: direction-first decoded window, then project-wide
+  // One lightweight worker: direction-first window, at least 1 GiB decoded
+  // (or every available photo for small projects), then project-wide
   // compressed previews. No full RAW/GPU development in this queue.
   // Prepared only limits the one-time whole-project pass. It must never block
   // reloading an evicted preview in the moving look-ahead window.
@@ -50,11 +51,20 @@
       for(let n=1;n<=3;n++)near.push(state.visible[index-n*direction]);
       const eligible=f=>f&&!f.missing&&(failures.get(localKey(f,photoState(f).recipe))||0)<=Date.now();
       const next=near.find(f=>eligible(f)&&!memory.has(localKey(f,photoState(f).recipe)));
-      const f=next||state.files.find(f=>eligible(f)&&!compressed.has(localKey(f,photoState(f).recipe))&&!prepared.has(localKey(f,photoState(f).recipe)));
-      if(!f){more=false;cacheStatus.textContent='Browsing previews prepared · '+memory.size+' ready in RAM';return;}
-      cacheStatus.textContent='Preparing browsing previews · '+memory.size+' ready in RAM';
+      let fill=null;
+      if(!next&&decodedBytes<decodedTarget){
+        // Expand outward from the current photo, favoring travel direction.
+        const needs=f=>eligible(f)&&!memory.has(localKey(f,photoState(f).recipe));
+        if(needs(state.current))fill=state.current;
+        for(let n=1;!fill&&n<state.visible.length;n++)fill=[state.visible[index+n*direction],state.visible[index-n*direction]].find(needs);
+        fill ||= state.files.find(needs);
+      }
+      const f=next||fill||state.files.find(f=>eligible(f)&&!compressed.has(localKey(f,photoState(f).recipe))&&!prepared.has(localKey(f,photoState(f).recipe)));
+      const usage=memory.size+' ready · '+Math.round(decodedBytes/1024**2)+' MB decoded';
+      if(!f){more=false;cacheStatus.textContent='Browsing previews prepared · '+usage;return;}
+      cacheStatus.textContent='Preparing browsing previews · '+usage+' (1 GB warm-up target)';
       const r=structuredClone(photoState(f).recipe),key=localKey(f,r);
-      try{await lookup(f,r,undefined,!!next);if(project===state.projectId){prepared.add(key);failures.delete(key);}}
+      try{await lookup(f,r,undefined,!!(next||fill));if(project===state.projectId){prepared.add(key);failures.delete(key);}}
       catch(e){if(project===state.projectId)failures.set(key,Date.now()+30000);console.debug('Preview preparation skipped',f.name,e.message);}
     }finally{warming=false;if(project!==state.projectId||more)scheduleWarm();else if(failures.size)scheduleWarm(30000);}
   }

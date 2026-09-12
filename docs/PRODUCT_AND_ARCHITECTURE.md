@@ -201,7 +201,11 @@ Photo browsing uses a bounded 2 GiB decoded-preview cache and 192 MiB
 compressed-preview cache, in addition to the existing small recent-frame cache
 and GPU buffers. A lightweight worker prepares the next 12 visible photos in the
 travel direction and three behind, then visits the remaining project sources to
-populate the disk cache and compressed RAM cache. Camera previews are labeled as
+fill at least 1 GiB of decoded previews, expanding outward from the current photo.
+Small projects decode every available preview instead. After this warm-up, the
+worker populates the disk cache and compressed RAM cache. This is asynchronous,
+not an immediate allocation; missing/failed sources do not count toward the
+target. The library status displays the decoded memory estimate. Camera previews are labeled as
 before-edits images; use **Prepare project previews** to develop saved-edit
 previews for the full project. Cache limits are not a total process-memory limit.
 
