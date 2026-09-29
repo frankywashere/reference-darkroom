@@ -78,7 +78,10 @@ class UnifiedPhotoRenderer {
           float envelope=sqrt(clamp(1.-abs(lum(c)-.5),.25,1.));c+=noise(floor(uv*outputSize/referenceScale))*grain*.00045*envelope;c=clamp(c,0.,1.);
         }else if(op==8){c=texture(image,crop.xy+uv*crop.zw).rgb;
         }else if(op==9){float hi=max(max(c.r,c.g),c.b),lo=lum(c);c=vec3(hi>=1.?1.:0.,lo<=.0005?1.:0.,hi>=1.&&min(min(c.r,c.g),c.b)<1.?1.:0.);
-        }else if(op==10){vec3 flags=texture(aux,uv).rgb;if((clipMode==1||clipMode==3)&&flags.r>.5)c=mix(c,vec3(1,0,0),.82);if((clipMode==2||clipMode==3)&&flags.g>.5)c=mix(c,vec3(0,.25,1),.88);}
+        }else if(op==10){vec3 flags=texture(aux,uv).rgb;if((clipMode==1||clipMode==3)&&flags.r>.5)c=mix(c,vec3(1,0,0),.82);if((clipMode==2||clipMode==3)&&flags.g>.5)c=mix(c,vec3(0,.25,1),.88);
+        }else if(op==11){vec2 q=uv+direction;float weight=texture(maskTex,uv).r*amount;
+          if(all(greaterThanEqual(q,vec2(0)))&&all(lessThanEqual(q,vec2(1))))c=mix(c,texture(aux,q).rgb,weight);
+        }else if(op==12){c=mix(c,texture(aux,uv).rgb,amount);}
         outColor=vec4(c,1);
       }`);
     this.maskProgram=this.compile(vertex,`#version 300 es
@@ -129,9 +132,10 @@ class UnifiedPhotoRenderer {
     if(w>this.limit||h>this.limit)throw Error('Rotated photo exceeds GPU limit; reduce rotation or export size');
     if(this.targets[0]?.w!==w||this.targets[0]?.h!==h){this.targets.forEach(t=>this.remove(t));this.targets=Array.from({length:5},()=>this.target(w,h));this.clearMasks();}
     let [cur,next,temp,blur,flags]=this.targets;const swap=()=>{[cur,next]=[next,cur]};
+    const workingSource=this.cloneSource?this.cloneSource(r.clone_layers,options.full?Math.max(this.width,this.height):side):this.source;
     this.use(this.program);for(const k of ['exposure','contrast','highlights','shadows','whites','blacks','temperature','tint','saturation','vibrance'])this.uniform(k,+r[k]||0);
     const cp=r.camera_look_enabled?r.camera_look:null;this.uniform('cameraEV',cp?Math.max(-3,Math.min(3,+cp.ev||0)):0);this.uniform('cameraGamma',cp?Math.max(.5,Math.min(1.8,+cp.gamma||1)):1);
-    this.pass(0,this.source,cur,{sourceSize:[this.width,this.height],outputSize:[nativeW,nativeH],angle,flipH:r.flip_h?1:0,flipV:r.flip_v?1:0,grade:r.grade==='cinema'?1:r.grade==='faded'?2:0});
+    this.pass(0,workingSource,cur,{sourceSize:[this.width,this.height],outputSize:[nativeW,nativeH],angle,flipH:r.flip_h?1:0,flipV:r.flip_v?1:0,grade:r.grade==='cinema'?1:r.grade==='faded'?2:0});
     for(const m of r.masks||[]){if(m.enabled===false)continue;const mask=this.mask(m,w,h);this.pass(1,cur,next,{invert:m.invert?1:0,amount:Math.max(0,Math.min(1,(m.amount??100)/100)),localExposure:+m.exposure||0,localSaturation:+m.saturation||0,localTemperature:+m.temperature||0},null,mask);swap();}
     this.pass(9,cur,flags);
     const weights=[r.bw_red??45,r.bw_green??40,r.bw_blue??15],sum=Math.max(1,weights.reduce((a,b)=>a+b,0));let prev=0;const points=(r.curve||[0,25,50,75,100]).map(v=>prev=Math.max(prev,Math.min(1,v/100)));

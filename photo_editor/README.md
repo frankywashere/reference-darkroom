@@ -196,7 +196,33 @@ grain. The old approximate single-pass shader has been removed.
   memory. Full-resolution export can use several GB. Cancel stops a batch after
   the current in-flight operation; completed JPGs are kept. The app must stay open.
 
-### GPU validation
+### Clone stamp / retouch layers
+
+Open **Clone** in the right panel. Option/Alt-click a clean source area (or click
+**Set source**, then the photo), and paint over a distraction. Brush size,
+feather, stroke opacity, and flow affect new strokes. The outer circle shows the
+brush diameter; the inner circle shows its firm core; the cross marks the source.
+Aligned source keeps the offset between strokes; switch it off to restart each
+stroke from the chosen source. Sampling outside the original leaves pixels alone.
+
+The first stroke creates a dedicated retouch layer. Layers can be named, hidden,
+deleted, and faded with layer opacity. Erase retouch restores the image below the
+selected layer. Undo/redo covers strokes and layer changes. Original photo samples
+the unretouched image; Retouch stack samples the pre-stroke composite including
+earlier strokes and lower layers, avoiding feedback smearing within a stroke.
+
+Strokes persist in each photo's catalog recipe, not in the source file. They use
+original-image coordinates and scene-linear float32 values before color, masks,
+rotation and crop. Reference looks preserve them; Reset photo clears them.
+JPG export replays them at source resolution. Fit previews replay at display
+resolution; choose Full detail to inspect fine retouch edges. Large retouch
+histories and full-resolution exports require additional GPU memory and time.
+This is a clone stamp, not automatic healing or AI blemish removal.
+
+Regression tests: `test_clone.py` and `qa_clone.cjs` (isolated backend on 8766,
+with temporary `REFERENCE_DARKROOM_DATA` and `REFERENCE_DARKROOM_PROJECTS`).
+
+### Renderer regression tests
 
 `python3 -m unittest discover -s photo_editor -p 'test_*.py'` includes float32
 transport, size-limit, sRGB profile, orientation and non-overwrite checks.

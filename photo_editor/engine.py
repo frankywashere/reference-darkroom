@@ -65,6 +65,7 @@ PRESETS: dict[str, dict[str, Any]] = {
 
 
 DEFAULT_RECIPE: dict[str, Any] = {
+    "clone_layers": [],
     "camera_look_enabled": False, "camera_look": None,
     "preset": "neutral", "exposure": 0.0, "contrast": 0, "highlights": 0, "shadows": 0,
     "whites": 0, "blacks": 0, "temperature": 0, "tint": 0, "saturation": 0,
@@ -442,10 +443,34 @@ def _geometry(rgb: np.ndarray, r: dict[str, Any]) -> np.ndarray:
                           borderMode=cv2.BORDER_CONSTANT, borderValue=(.006, .006, .006))
 
 
+def _clone_layers(rgb: np.ndarray, layers: list[dict[str, Any]]) -> np.ndarray:
+    original=rgb
+    h,w=rgb.shape[:2]
+    for layer in layers:
+        opacity=float(np.clip(layer.get('opacity',100)/100,0,1))
+        if layer.get('enabled') is False or opacity==0 or not layer.get('strokes'):continue
+        base=rgb
+        for stroke in layer['strokes']:
+            if not stroke.get('points'):continue
+            weight=_brush_mask((h,w),{'strokes':[{**stroke,'erase':False}]})
+            if stroke.get('erase'):sample=base
+            else:
+                offset=stroke.get('offset')
+                if not isinstance(offset,list) or len(offset)!=2 or not np.isfinite(offset).all():continue
+                source=original if stroke.get('sample')=='original' else rgb
+                xx,yy=np.meshgrid(np.arange(w,dtype=np.float32)+offset[0]*w,np.arange(h,dtype=np.float32)+offset[1]*h)
+                valid=(xx>=-.5)&(xx<=w-.5)&(yy>=-.5)&(yy<=h-.5)
+                sample=cv2.remap(source,xx,yy,cv2.INTER_LINEAR,borderMode=cv2.BORDER_REPLICATE)
+                weight*=valid
+            rgb=rgb+(sample-rgb)*weight[...,None]
+        rgb=base+(rgb-base)*opacity
+    return rgb
+
+
 def develop_linear(image: LinearImage | Image.Image | np.ndarray, recipe: dict[str, Any] | None) -> tuple[np.ndarray, dict[str, Any]]:
     """Apply scene-linear operations without clipping display highlights."""
     r = normalize_recipe(recipe)
-    rgb = _geometry(_to_linear_image(image).pixels, r)
+    rgb = _geometry(_clone_layers(_to_linear_image(image).pixels, r.get('clone_layers',[])), r)
     rgb = _tone(rgb, r)
     rgb = _color(rgb, r)
     rgb = _grade(rgb, str(r.get("grade", "neutral")))

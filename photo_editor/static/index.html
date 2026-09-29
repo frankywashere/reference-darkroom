@@ -44,6 +44,7 @@
   <dialog id="projectDialog"><form id="projectForm"><h2 id="projectDialogTitle">New project</h2><label id="projectNameLabel">Project name <input id="projectName" placeholder="My shoot"></label><label>Photo folder <input id="projectFolder" placeholder="/Volumes/SU800/DCIM/100_FUJI" required></label><small id="projectHelp">Photos stay in their original folder. This project stores references and editing settings.</small><div id="projectError" role="alert"></div><menu><button type="button" id="cancelProject">Cancel</button><button class="primary" id="confirmProject" type="submit">Create project</button></menu></form></dialog>
   <dialog id="exportDialog"><form method="dialog"><h2>Export full-resolution JPGs</h2><label>Export <select id="exportScope"><option value="current">Current photo</option><option value="picked">All picked photos</option><option value="visible">Visible photos</option></select></label><label>Destination folder <input id="exportPath" value="/Users/frank/Pictures/Reference Darkroom Exports"></label><label>Filename prefix <input id="exportPrefix" value="EDIT_"></label><label>JPEG quality <input id="exportQuality" type="range" min="75" max="100" value="96"><output id="qualityOut">96</output></label><div id="exportProgress"></div><menu><button value="cancel">Cancel</button><button id="startExport" value="noop" class="primary">Start export</button></menu></form></dialog>
   <script src="/static/gpu-engine.js"></script>
+  <script src="/static/clone-engine.js"></script>
   <script src="/static/app.js"></script>
   <script src="/static/brushes.js"></script>
   <script src="/static/projects.js"></script>
@@ -57,4 +58,5 @@
   <script src="/static/slider-reset.js"></script>
   <script src="/static/crop-math.js"></script>
   <script src="/static/crop-controls.js"></script>
+  <script src="/static/clone-tool.js"></script>
 </body></html>
