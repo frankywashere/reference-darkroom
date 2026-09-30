@@ -1,6 +1,6 @@
 # Reference Darkroom: product and engineering record
 
-Updated 2026-09-11. This and ROADMAP.md supersede outdated architecture/runtime
+Updated 2026-09-30. This and ROADMAP.md supersede outdated architecture/runtime
 statements in older handoffs. Process state, mounts and installed packages must
 always be checked live; this document is not proof that a service is running.
 
@@ -34,6 +34,18 @@ generate reference images or infer recipes from arbitrary reference images.
 RAW/JPG versions keep independent recipes. Identical numbers do not imply an
 identical look because the camera JPG already contains processing. Ambiguous
 pairs should not be guessed. Missing originals can be reconnected by fingerprint.
+
+### Nikon Z8 tethering
+
+The **Tether** window supplies camera discovery, live view, single remote capture,
+camera-provided exposure controls, and automatic NEF/JPG arrival into a fixed
+receiving project. Optional starting looks transfer global edits, not spatial
+brushes or crops. The local, licensed Nikon Remote SDK runs in an isolated native
+helper; the backend verifies completed transfers before catalog registration.
+Lossless RAW defaults on for compatibility with the current full-resolution
+decoder; the camera's prior compression and save-media settings are restored on
+normal disconnect. High Efficiency NEF decoding and AI portrait retouching are
+not implemented. See [NIKON_TETHERING.md](NIKON_TETHERING.md) for setup and limits.
 
 ## Editing controls
 

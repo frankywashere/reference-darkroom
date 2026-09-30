@@ -38,3 +38,5 @@ node_modules/
 catalog.darkroom.json
 /native/*.iconset/
 /tools/vision_score
+/native/nikon-sdk/
+/native/nikon-build/

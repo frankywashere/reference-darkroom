@@ -530,6 +530,9 @@ def export_status(job_id: str) -> JSONResponse:
         return JSONResponse(dict(state))
 
 
+from tether import register_tether
+tether = register_tether(app, DATA, catalog)
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8765)

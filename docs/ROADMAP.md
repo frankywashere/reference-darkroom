@@ -1,6 +1,6 @@
 # Roadmap and prior decisions
 
-Updated 2026-09-11. These are discussed directions, not permission to implement
+Updated 2026-09-30. These are discussed directions, not permission to implement
 everything automatically. See PRODUCT_AND_ARCHITECTURE.md for working features.
 
 ## 1. Preview and interaction polish (partly implemented)
@@ -57,7 +57,14 @@ would undermine the agreed portability goal without a clear cross-platform plan.
 Research references: https://v2.tauri.app/reference/webview-versions/ and
 https://github.com/google/angle . Re-check current support before implementation.
 
-## 4. Nikon Z8 tethering and live view (not implemented)
+## 4. Nikon Z8 tethering and live view (Mac implementation)
+
+Implemented with the user's Nikon Remote SDK 2.0.0: isolated native camera
+process, discovery/connect/disconnect, live-view window, remote one-frame capture,
+camera-provided exposure options, completed-file catalog ingestion, and optional
+global starting recipe. See NIKON_TETHERING.md for setup, behavior, and testing.
+Windows SDK hosting, burst controls and autofocus-point placement remain future
+work. The following notes preserve the original requirements and alternatives.
 
 The requested tether camera is the **Nikon Z8**, not the Fuji used for development.
 Scope includes capture arrival into a project, live view, camera/capture control,

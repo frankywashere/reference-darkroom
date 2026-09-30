@@ -196,6 +196,12 @@ grain. The old approximate single-pass shader has been removed.
   memory. Full-resolution export can use several GB. Cancel stops a batch after
   the current in-flight operation; completed JPGs are kept. The app must stay open.
 
+### Nikon tethering
+
+Nikon Z8 tethered shooting is available from **Tether** in the header: live view,
+remote capture, camera-provided exposure controls, project arrival, and optional
+starting looks. Setup and operating details are in [NIKON_TETHERING.md](../docs/NIKON_TETHERING.md).
+
 ### Clone stamp / retouch layers
 
 Open **Clone** in the right panel. Option/Alt-click a clean source area (or click

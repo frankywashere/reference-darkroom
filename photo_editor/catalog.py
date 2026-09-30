@@ -302,6 +302,29 @@ class Catalog:
             self.write(p)
             return p
 
+    def add_capture(self, project_id, filename, recipe, capture_id):
+        """Register one SDK-confirmed capture atomically without rescanning a tree."""
+        path = Path(filename).resolve()
+        if not path.is_file() or path.suffix.lower() not in IMAGE_SUFFIXES:
+            raise ValueError('Capture is not a supported photo')
+        with self.lock:
+            p = self.read(project_id)
+            existing = next((a for a in p['assets'] if a['path'] == str(path)), None)
+            if existing:
+                return existing, p['photos'].get(existing['id']), False
+            asset = {'id': uuid.uuid4().hex, 'path': str(path), 'name': path.name,
+                     'type': path.suffix[1:].upper(), 'bytes': path.stat().st_size,
+                     'fingerprint': self.fingerprint(path), 'capture_id': capture_id}
+            photo = {'rating': 0, 'recipe': recipe}
+            p['assets'].append(asset)
+            p['photos'][asset['id']] = photo
+            if str(path.parent) not in p['roots']:
+                p['roots'].append(str(path.parent))
+            if not p['source']:
+                p['source'] = str(path.parent)
+            self.write(p)
+            return asset, photo, True
+
     def save_edits(self, project_id, photos, selected):
         with self.lock:
             p = self.read(project_id)
