@@ -42,6 +42,7 @@ $('#projectForm').onsubmit=async e=>{
 };
 const useFolderProject=useProject;
 useProject=async function(data){
+  await window.retargetTetherProject?.(data.project_id);
   state.linearToken++;state.history=[];state.future=[];state.live=null;state.drag=null;state.compare=false;
   $('#before').classList.remove('active');$('.compareSlider').style.display='none';$('#loading').style.display='none';
   state.projectName=data.name;state.catalogPath=data.catalog_path;

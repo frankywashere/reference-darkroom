@@ -31,8 +31,13 @@ rendering and catalog threads.
    Disconnect restores the prior save-media setting on a normal shutdown.
    RAW+JPG selection remains the camera's setting.
 8. **Select new captures** follows arrivals in the receiving project. Turn it off
-   to keep editing the current photograph. Switching projects does not redirect
-   an active session: its receiving project/destination remain displayed.
+   to keep editing the current photograph. Switching or creating projects now
+   automatically changes the receiving project without stopping live view or
+   reconnecting. The session's physical capture folder stays unchanged; the new
+   project references subsequent originals there. Already-started transfers stay
+   assigned to their earlier project; RAW/JPG siblings stay together. Previous
+   shots are not moved. The active starting look is retained until explicitly
+   updated. The receiving project and physical folder remain displayed.
 9. **Use current look for next captures** updates subsequent arrivals. Existing
    photographs keep their own recipes. This transfers global color/tone/detail
    settings; cropping, rotation, masks, and cloned pixels start independently.
@@ -115,7 +120,12 @@ Hardware verification on 2026-09-30 used the connected Z8: live view delivered
 640 × 424 frames; two consecutive remote exposures in one session transferred
 approximately 54 MB lossless NEFs, decoded at 8280 × 5520 into the GPU editor,
 and remained available after reopening the catalog. `--repeat` requests the
-second real exposure. The automated suite covers 55 tests, including safe
+second real exposure. The automated suite covers 58 tests, including safe
 disconnected-helper behavior. This does not establish autofocus accuracy,
 portrait live-view orientation, every camera release mode, or High Efficiency
 NEF compatibility.
+
+`qa_tether.cjs --switch` uses a mocked camera interface against the scratch
+backend to check that creating a project updates the live target without a
+disconnect. Unit tests cover future routing, in-flight transfer retention, and
+RAW/JPG sibling routing across a switch.

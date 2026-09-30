@@ -32,6 +32,8 @@ class NikonTether:
         self.events = deque(maxlen=200)
         self.sequence = 0
         self.session = None
+        self.transfer_routes = deque()
+        self.capture_routes = {}
         self.connected = False
         self.live = False
         self.devices = []
@@ -94,12 +96,13 @@ class NikonTether:
                         self.error = message.get('message', 'Nikon SDK stopped')
                         self.ready.set()
                     elif kind == 'capture_saved' and self.session:
-                        self.jobs.put((deepcopy(self.session), message.get('path','')))
-                        self._event('transfer', message='Photo received; adding to project…')
+                        self._capture_received(message.get('path',''))
                     elif kind == 'error' or (kind == 'shooting_result' and message.get('sdk_code',0)!=0):
                         self.error = message.get('message', f"Capture failed (Nikon code {message.get('sdk_code')}).")
                         self._event('error', message=self.error)
                     elif kind in ('devices_changed','settings_changed','live_changed','capture_complete','transfer'):
+                        if kind=='transfer' and message.get('done')==0:
+                            self._transfer_started()
                         self._event(kind, **{k:v for k,v in message.items() if k!='event'})
                         if kind=='devices_changed' and self.connected:
                             threading.Thread(target=self._check_presence,daemon=True).start()
@@ -173,6 +176,7 @@ class NikonTether:
         if len(str(folder).encode())>=255:raise TetherError('Choose a shorter capture folder path (Nikon limits it to 255 bytes).')
         folder.mkdir()
         with self.lock:
+            self.transfer_routes.clear();self.capture_routes.clear()
             self.session={'id':uuid.uuid4().hex,'project_id':project_id,'project_name':project['name'],
                           'destination':str(folder),'device_id':device_id,'recipe':self.starting_recipe(recipe),'lossless':lossless}
             self.error=''
@@ -183,6 +187,32 @@ class NikonTether:
             raise
         self._event('connected',message=f"Connected; photos save to {folder}")
         return self.status()
+
+    def retarget(self, project_id):
+        """Change catalog routing without interrupting the live camera session."""
+        project=self.catalog.read(project_id)
+        with self.command_lock, self.lock:
+            if not self.connected or not self.session:return self.status()
+            if self.session['project_id']==project_id:return self.status()
+            self.session={**self.session,'project_id':project_id,'project_name':project['name']}
+            self._event('target_changed',message=f"Future captures → {project['name']}")
+            return self.status()
+
+    def _transfer_started(self):
+        with self.lock:
+            if self.session:self.transfer_routes.append(deepcopy(self.session))
+
+    def _capture_received(self, filename):
+        with self.lock:
+            route=self.transfer_routes.popleft() if self.transfer_routes else deepcopy(self.session)
+            # The RAW/JPG siblings of one shot must stay in the same project.
+            stem=Path(filename).stem
+            if stem.rsplit('.',1)[-1].isdigit():stem=stem.rsplit('.',1)[0]
+            key=(route['id'],stem)
+            route=self.capture_routes.setdefault(key,route)
+            if len(self.capture_routes)>256:self.capture_routes.pop(next(iter(self.capture_routes)))
+            self.jobs.put((deepcopy(route),filename))
+            self._event('transfer',message=f"Photo received; adding to {route['project_name']}…")
 
     @staticmethod
     def starting_recipe(recipe):
@@ -257,7 +287,7 @@ class NikonTether:
                 if path.suffix.lower() in {'.jpg','.jpeg'}:r['camera_look_enabled']=False
                 else:r['camera_look_enabled']=True
                 asset,photo,added=self.catalog.add_capture(session['project_id'],path,r,uuid.uuid4().hex)
-                if added:self._event('imported',project_id=session['project_id'],asset=asset,photo=photo)
+                if added:self._event('imported',project_id=session['project_id'],project_name=session.get('project_name', 'receiving project'),asset=asset,photo=photo)
             except Exception as error:
                 self._event('error',message=str(error),path=filename)
                 with self.lock:self.error=str(error)
@@ -291,6 +321,8 @@ def register_tether(app, data, catalog):
         lossless:bool=True
     class CaptureRequest(BaseModel):
         autofocus:bool=True
+    class TargetRequest(BaseModel):
+        project_id:str
     class LiveRequest(BaseModel):
         enabled:bool
     class RecipeRequest(BaseModel):
@@ -309,6 +341,8 @@ def register_tether(app, data, catalog):
     def connect(req:ConnectRequest):return call(tether.connect,req.project_id,req.device_id,req.destination,req.recipe,req.lossless)
     @app.post('/api/tether/disconnect')
     def disconnect():return call(tether.disconnect)
+    @app.post('/api/tether/target')
+    def target(req:TargetRequest):return call(tether.retarget,req.project_id)
     @app.post('/api/tether/live')
     def live(req:LiveRequest):return call(tether.command,'live_start' if req.enabled else 'live_stop')
     @app.post('/api/tether/capture')

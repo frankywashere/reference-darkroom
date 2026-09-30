@@ -63,6 +63,8 @@ Implemented with the user's Nikon Remote SDK 2.0.0: isolated native camera
 process, discovery/connect/disconnect, live-view window, remote one-frame capture,
 camera-provided exposure options, completed-file catalog ingestion, and optional
 global starting recipe. See NIKON_TETHERING.md for setup, behavior, and testing.
+The receiving project follows project selection without interrupting live view;
+in-flight transfers retain their original assignment.
 Windows SDK hosting, burst controls and autofocus-point placement remain future
 work. The following notes preserve the original requirements and alternatives.
 

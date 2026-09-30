@@ -5,10 +5,22 @@ const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright');
  const browser=await chromium.launch({executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true,args:['--use-angle=metal']});
  const page=await browser.newPage({viewport:{width:1600,height:1100}}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));
+ const mock=process.argv.includes('--switch')?{installed:true,connected:false,live:false,devices:[{id:1,name:'Z 8',available:true}],settings:{},session:null,frame_age:null,cursor:0,events:[]}:null;
+ if(mock)await page.route('**/api/tether/**',async route=>{
+  const req=route.request();if(req.url().includes('/target')&&mock.connected){const id=req.postDataJSON().project_id;mock.session={...mock.session,project_id:id,project_name:'Switched project'};}
+  await route.fulfill({json:mock});
+ });
  try{
   await page.goto('http://127.0.0.1:8766');await page.waitForFunction(()=>state.config!==null);
   const project=await page.evaluate(async()=>{const p=await projectRequest('/api/projects',{name:'Z8 tether QA'});await useProject(p);return p.project_id;});
   await page.click('#openTether');await page.waitForFunction(()=>document.querySelector('#tetherDevices').options[0]?.value==='1',{timeout:15000});
+  if(mock){
+   mock.connected=true;mock.live=true;mock.session={project_id:project,project_name:'Initial',destination:'/tmp/mock-session',device_id:1};
+   const second=await page.evaluate(async()=>{const p=await projectRequest('/api/projects',{name:'Switched project'});await useProject(p);return p.project_id});
+   if(mock.session.project_id!==second||!mock.live)throw Error('Project switch failed or stopped live view');
+   await page.waitForFunction(()=>document.querySelector('#tetherSession').textContent.includes('Switched project'));
+   console.log('Project switch follows selection without reconnecting: PASS');
+  }
   if(process.argv.includes('--hardware')){
    await page.click('#tetherConnect');await page.waitForFunction(()=>!document.querySelector('#tetherImage').hidden,{timeout:30000});
    const dimensions=await page.locator('#tetherImage').evaluate(im=>({width:im.naturalWidth,height:im.naturalHeight}));

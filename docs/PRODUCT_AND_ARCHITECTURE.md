@@ -38,8 +38,10 @@ pairs should not be guessed. Missing originals can be reconnected by fingerprint
 ### Nikon Z8 tethering
 
 The **Tether** window supplies camera discovery, live view, single remote capture,
-camera-provided exposure controls, and automatic NEF/JPG arrival into a fixed
-receiving project. Optional starting looks transfer global edits, not spatial
+camera-provided exposure controls, and automatic NEF/JPG arrival into the selected
+project. Project switching retargets future captures without reconnecting; the
+physical session folder stays unchanged and in-flight transfers retain their
+original project. Optional starting looks transfer global edits, not spatial
 brushes or crops. The local, licensed Nikon Remote SDK runs in an isolated native
 helper; the backend verifies completed transfers before catalog registration.
 Lossless RAW defaults on for compatibility with the current full-resolution

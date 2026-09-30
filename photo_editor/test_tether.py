@@ -29,8 +29,41 @@ class TetherTests(unittest.TestCase):
 
     def session(self):
         folder=self.root/'captures';folder.mkdir(exist_ok=True)
-        return {'id':'test-session','project_id':self.project['id'],
+        return {'id':'test-session','project_id':self.project['id'],'project_name':self.project['name'],
                 'destination':str(folder),'recipe':self.tether.starting_recipe({'exposure':.7})}
+
+    def test_switch_routes_future_captures_and_keeps_live_session(self):
+        self.tether.session=self.session();self.tether.connected=True;self.tether.live=True
+        second=self.catalog.create_empty('Second project')
+        old_destination=self.tether.session['destination']
+        self.tether.retarget(second['id'])
+        file=Path(old_destination)/'new.jpg';Image.new('RGB',(20,20)).save(file)
+        self.tether._transfer_started();self.tether._capture_received(file.name);self.tether.jobs.join()
+        self.assertTrue(self.tether.live);self.assertTrue(self.tether.connected)
+        self.assertEqual(self.tether.session['destination'],old_destination)
+        self.assertEqual(len(self.catalog.read(second['id'])['assets']),1)
+        self.assertEqual(len(self.catalog.read(self.project['id'])['assets']),0)
+
+    def test_switch_during_transfer_keeps_old_route_and_recipe(self):
+        self.tether.session=self.session();self.tether.connected=True
+        second=self.catalog.create_empty('Second project')
+        self.tether._transfer_started();self.tether.retarget(second['id'])
+        file=Path(self.tether.session['destination'])/'old.jpg';Image.new('RGB',(20,20)).save(file)
+        self.tether._capture_received(file.name);self.tether.jobs.join()
+        self.assertEqual(len(self.catalog.read(self.project['id'])['assets']),1)
+        self.assertEqual(len(self.catalog.read(second['id'])['assets']),0)
+
+    def test_raw_jpg_siblings_keep_same_project_when_switching(self):
+        self.tether.session=self.session();self.tether.connected=True
+        second=self.catalog.create_empty('Second project')
+        root=Path(self.tether.session['destination'])
+        raw=root/'DSC_001.001.nef';raw.write_bytes(b'II*\x00'+b'0'*100)
+        jpg=root/'DSC_001.001.jpg';Image.new('RGB',(20,20)).save(jpg)
+        self.tether._transfer_started();self.tether._capture_received(raw.name)
+        self.tether.retarget(second['id']);self.tether._transfer_started();self.tether._capture_received(jpg.name)
+        self.tether.jobs.join()
+        self.assertEqual(len(self.catalog.read(self.project['id'])['assets']),2)
+        self.assertEqual(len(self.catalog.read(second['id'])['assets']),0)
 
     def test_completed_capture_is_deduplicated_and_keeps_recipe(self):
         session=self.session();file=Path(session['destination'])/'shot.jpg'

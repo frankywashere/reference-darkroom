@@ -11,7 +11,7 @@
     <label class="tetherCheck"><input type="checkbox" id="tetherLossless" checked> Lossless RAW for full-resolution editing</label><small>High Efficiency NEFs aren't supported by the editor yet. The camera's prior compression setting is restored on disconnect.</small>
     <label class="tetherCheck"><input type="checkbox" id="tetherUseLook"> Use the current photo's look for new captures</label>
     <button id="tetherConnect" class="primary">Connect to current project</button></div>
-    <div id="tetherShooting" hidden><p id="tetherSession"></p><div class="tetherRow"><button id="tetherLiveToggle">Start live view</button><button id="tetherDisconnect">Disconnect</button><button id="tetherRefreshSettings" title="Refresh camera settings">↻ Settings</button></div>
+    <div id="tetherShooting" hidden><p id="tetherSession"></p><small>Receiving project follows your project selection. Originals stay in this session's capture folder.</small><div class="tetherRow"><button id="tetherLiveToggle">Start live view</button><button id="tetherDisconnect">Disconnect</button><button id="tetherRefreshSettings" title="Refresh camera settings">↻ Settings</button></div>
     <div id="tetherSettings"></div><div class="tetherCaptureRow"><label class="tetherCheck"><input id="tetherAutofocus" type="checkbox" checked> Autofocus</label><button id="tetherCapture" class="primary">● Capture</button></div>
     <label class="tetherCheck"><input id="tetherFollow" type="checkbox" checked> Select new captures in this project</label><button id="tetherUpdateLook">Use current look for next captures</button><small>Copies global adjustments. Each capture keeps its own crop, masks and retouch.</small></div>
     <p id="tetherStatus" role="status">Create or open a project, then scan for your camera.</p><p id="tetherError" role="alert"></p>
@@ -19,6 +19,14 @@
   const css=document.createElement('style');css.textContent=`#tetherWindow{position:fixed;right:340px;top:76px;width:520px;min-width:350px;max-width:calc(100vw - 32px);max-height:calc(100vh - 100px);overflow:auto;resize:both;background:var(--panel);border:1px solid #535b62;border-radius:10px;z-index:30;box-shadow:0 20px 70px #0009}#tetherWindow[hidden]{display:none}.tetherHeading{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line);cursor:move;touch-action:none}.tetherHeading>div{display:flex;align-items:center;gap:12px}.tetherHeading small{color:var(--muted)}#hideTether{font-size:20px;border:0;background:none;padding:0 6px}.tetherLive{position:relative;aspect-ratio:3/2;background:#070809;display:grid;place-items:center;overflow:hidden}.tetherLive img{width:100%;height:100%;object-fit:contain}.tetherLive img[hidden]{display:none}#tetherEmpty{position:absolute;color:var(--muted);padding:20px;text-align:center}#tetherLiveBadge{position:absolute;top:12px;left:12px;font-size:10px;letter-spacing:.14em;color:#8be3b0;background:#11281fe6;padding:4px 7px;border-radius:4px}.tetherBody{padding:14px}.tetherRow,.tetherCaptureRow{display:flex;align-items:center;gap:8px;margin:8px 0}.tetherRow select,.tetherRow input{min-width:0;flex:1;padding:7px}.tetherLabel{display:block;margin-top:12px}.tetherCheck{display:flex;align-items:center;gap:7px;margin:12px 0}.tetherBody small{display:block;color:var(--muted);font-size:11px;line-height:1.5}.tetherCaptureRow{justify-content:space-between}#tetherCapture{padding:10px 22px;font-size:14px}#tetherSession{font-size:11px;color:var(--muted);overflow-wrap:anywhere}#tetherStatus{font-size:12px;color:#9cceb4;margin-bottom:0}#tetherError{font-size:12px;color:#f0a595;white-space:pre-wrap;margin:7px 0 0}#tetherSettings{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}#tetherSettings label{display:grid;gap:4px;font-size:11px;color:var(--muted)}#tetherSettings select{padding:6px;min-width:0}.tetherBusy{opacity:.7}@media(max-width:1100px){#tetherWindow{right:24px}}`;document.head.append(css);
   const win=$('#tetherWindow');let status=null,cursor=0,busy=false,frameBusy=false,imageURL=null,polling=false,syncBusy=false,settingsKey='',lastScan=0;
   const recent=new Set();
+  let targetChain=Promise.resolve();
+  window.retargetTetherProject=async id=>{
+    targetChain=targetChain.catch(()=>{}).then(async()=>{
+      status=await request('target',{project_id:id});update();
+      if(status.connected&&status.session?.project_id!==id)throw Error('Tether project did not switch.');
+    });
+    try{await targetChain}catch(e){$('#tetherError').textContent=e.message;toast('Tether target could not switch: '+e.message);throw e}
+  };
   async function request(path,body){const r=await fetch('/api/tether/'+path,{...(body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})});if(!r.ok){const v=await r.json();throw Error(v.detail||'Camera request failed')}return r.json()}
   async function action(fn){if(busy)return;busy=true;$('#tetherError').textContent='';win.classList.add('tetherBusy');update();try{await fn();await poll()}catch(e){$('#tetherError').textContent=e.message}finally{busy=false;win.classList.remove('tetherBusy');update()}}
   function update(){if(!status)return;const connected=status.connected;
@@ -27,7 +35,7 @@
     $('#tetherScan').disabled=busy;$('#tetherCapture').disabled=busy||!connected;
     $('#tetherLiveToggle').textContent=status.live?'Stop live view':'Start live view';$('#tetherDisconnect').disabled=busy;
     $('#tetherUpdateLook').disabled=busy||!state.current||state.projectId!==status.session?.project_id;
-    if(status.session){$('#tetherSession').textContent=`${status.session.project_name} · ${status.session.destination}`;$('#tetherCamera').textContent=status.devices.find(d=>d.id===status.session.device_id)?.name||'Nikon camera';}
+    if(status.session){$('#tetherSession').textContent=`Receiving: ${status.session.project_name} · Files: ${status.session.destination}`;$('#tetherCamera').textContent=status.devices.find(d=>d.id===status.session.device_id)?.name||'Nikon camera';}
     if(!status.live){$('#tetherImage').hidden=true;$('#tetherLiveBadge').hidden=true;$('#tetherEmpty').hidden=false;$('#tetherEmpty').textContent=connected?'Live view is off.':'Connect your camera to start live view.';}
     else if(status.frame_age===null||status.frame_age>3){$('#tetherImage').hidden=true;$('#tetherLiveBadge').hidden=true;$('#tetherEmpty').hidden=false;$('#tetherEmpty').textContent='Waiting for live view… Check the camera if it stays paused.';}
     const key=JSON.stringify(status.settings);if(key!==settingsKey){settingsKey=key;$('#tetherSettings').replaceChildren();for(const [key,item] of Object.entries(status.settings||{})){if(!item.options?.length)continue;const label=document.createElement('label');label.textContent=({iso:'ISO',shutter:'Shutter speed',aperture:'Aperture',mode:'Exposure mode'})[key]||key;const select=document.createElement('select');for(const o of item.options){const opt=document.createElement('option');opt.value=o.index;opt.textContent=o.label;select.append(opt)}select.value=item.index;select.onchange=()=>action(async()=>{const v=await request('setting',{key,index:+select.value});status.settings=v.settings});label.append(select);$('#tetherSettings').append(label);}}
@@ -52,7 +60,7 @@
   async function poll(){if(polling)return;polling=true;try{
     const next=await request('status?after='+cursor);status=next;cursor=next.cursor;
     if(next.events.some(e=>e.kind==='devices_changed'))lastScan=0;
-    for(const e of next.events){if(e.kind==='error')$('#tetherError').textContent=e.message;else if(e.message)$('#tetherStatus').textContent=e.message;}
+    for(const e of next.events){if(e.kind==='error')$('#tetherError').textContent=e.message;else if(e.kind==='imported')$('#tetherStatus').textContent=`Received ${e.asset.name} · saved to ${e.project_name||'receiving project'}`;else if(e.message)$('#tetherStatus').textContent=e.message;}
     await ingestEvents(next.events);update();
     if(!next.installed)$('#tetherError').textContent='Install your Nikon SDK, then restart the photo engine.';
   }catch(e){if(!win.hidden)$('#tetherError').textContent=e.message}finally{polling=false}}
