@@ -19,6 +19,10 @@ class TetherError(RuntimeError):
 class NikonTether:
     def __init__(self, data, catalog):
         self.data = Path(data)
+        self.preferences = self.data/'nikon/tether-preferences.json'
+        try:self.auto_look=bool(json.loads(self.preferences.read_text()).get('auto_look',True))
+        except (OSError,ValueError):self.auto_look=True
+        self.auto_look_source=None
         self.catalog = catalog
         self.runtime = Path(os.environ.get('REFERENCE_DARKROOM_NIKON_RUNTIME', str(self.data/'nikon/runtime/TestApp/TestApp')))
         self.exe = self.runtime/'darkroom-nikon'
@@ -179,12 +183,14 @@ class NikonTether:
             self.transfer_routes.clear();self.capture_routes.clear()
             self.session={'id':uuid.uuid4().hex,'project_id':project_id,'project_name':project['name'],
                           'destination':str(folder),'device_id':device_id,'recipe':self.starting_recipe(recipe),'lossless':lossless}
+            if recipe is None:self.session['recipe']['camera_look_enabled']=True
             self.error=''
         try:
             self.command('connect',device_id=device_id,destination=str(folder),lossless=lossless)
         except Exception:
             with self.lock:self.session=None
             raise
+        if self.auto_look:self.set_auto_look(True)
         self._event('connected',message=f"Connected; photos save to {folder}")
         return self.status()
 
@@ -226,6 +232,45 @@ class NikonTether:
         with self.lock:
             if not self.session:raise TetherError('Connect a camera first.')
             self.session['recipe']=self.starting_recipe(recipe)
+        return self.status()
+
+    @staticmethod
+    def shot_key(asset):
+        path=Path(asset['path']);stem=path.stem
+        if stem.rsplit('.',1)[-1].isdigit():stem=stem.rsplit('.',1)[0]
+        return (str(path.parent),stem)
+
+    def sync_saved_edits(self, project_id, photos, selected):
+        with self.catalog.lock:self._sync_saved_edits_locked(project_id,photos,selected)
+
+    def _sync_saved_edits_locked(self, project_id, photos, selected):
+        with self.lock:
+            if not self.auto_look or not self.connected or not self.session or self.session['project_id']!=project_id:return
+        project=self.catalog.read(project_id)
+        captured=[a for a in project['assets'] if a.get('capture_id')]
+        asset=next((a for a in captured if a['id']==selected),None)
+        if not asset or self.shot_key(asset)!=self.shot_key(captured[-1]) or selected not in photos:return
+        r=self.starting_recipe(photos[selected].get('recipe',{}))
+        with self.lock:
+            if self.auto_look and self.connected and self.session and self.session['project_id']==project_id:
+                self.session['recipe']=r
+                self.auto_look_source=asset['name']
+
+    def set_auto_look(self, enabled):
+        with self.lock:
+            self.auto_look=enabled
+            self.preferences.parent.mkdir(parents=True,exist_ok=True)
+            temp=self.preferences.with_suffix('.tmp')
+            temp.write_text(json.dumps({'auto_look':enabled})+'\n');os.replace(temp,self.preferences)
+            project_id=self.session['project_id'] if self.connected and self.session else None
+        if enabled and project_id:
+            project=self.catalog.read(project_id)
+            captured=[a for a in project['assets'] if a.get('capture_id')]
+            if captured:
+                latest=[a for a in captured if self.shot_key(a)==self.shot_key(captured[-1])]
+                chosen=next((a for a in latest if a['id']==project.get('selected')),None)
+                chosen=chosen or next((a for a in latest if a.get('type') not in {'JPG','JPEG'}),latest[-1])
+                self.sync_saved_edits(project_id,project['photos'],chosen['id'])
         return self.status()
 
     def disconnect(self):
@@ -285,7 +330,7 @@ class NikonTether:
                         if header[:2]!=b'\xff\xd8' or f.read()!=b'\xff\xd9':raise TetherError('Incomplete JPG; capture was not imported.')
                 r=deepcopy(session['recipe'])
                 if path.suffix.lower() in {'.jpg','.jpeg'}:r['camera_look_enabled']=False
-                else:r['camera_look_enabled']=True
+                else:r['camera_look_enabled']=bool(r.get('camera_look_enabled',True))
                 asset,photo,added=self.catalog.add_capture(session['project_id'],path,r,uuid.uuid4().hex)
                 if added:self._event('imported',project_id=session['project_id'],project_name=session.get('project_name', 'receiving project'),asset=asset,photo=photo)
             except Exception as error:
@@ -296,7 +341,7 @@ class NikonTether:
     def status(self, after=0):
         with self.lock:
             age=time.time()-self.frame.stat().st_mtime if self.frame.is_file() else None
-            return {'installed':self.exe.is_file(),'connected':self.connected,'live':self.live,
+            return {'installed':self.exe.is_file(),'connected':self.connected,'live':self.live,'auto_look':self.auto_look,'auto_look_source':self.auto_look_source,
                 'devices':deepcopy(self.devices),'settings':deepcopy(self.settings),
                 'session':deepcopy(self.session),'error':self.error,'frame_age':age,
                 'pending':self.jobs.unfinished_tasks,'cursor':self.sequence,
@@ -323,6 +368,8 @@ def register_tether(app, data, catalog):
         autofocus:bool=True
     class TargetRequest(BaseModel):
         project_id:str
+    class AutoLookRequest(BaseModel):
+        enabled:bool
     class LiveRequest(BaseModel):
         enabled:bool
     class RecipeRequest(BaseModel):
@@ -343,6 +390,8 @@ def register_tether(app, data, catalog):
     def disconnect():return call(tether.disconnect)
     @app.post('/api/tether/target')
     def target(req:TargetRequest):return call(tether.retarget,req.project_id)
+    @app.post('/api/tether/auto-look')
+    def auto_look(req:AutoLookRequest):return call(tether.set_auto_look,req.enabled)
     @app.post('/api/tether/live')
     def live(req:LiveRequest):return call(tether.command,'live_start' if req.enabled else 'live_stop')
     @app.post('/api/tether/capture')

@@ -49,6 +49,10 @@ decoder; the camera's prior compression and save-media settings are restored on
 normal disconnect. High Efficiency NEF decoding and AI portrait retouching are
 not implemented. See [NIKON_TETHERING.md](NIKON_TETHERING.md) for setup and limits.
 
+Automatic starting-look updates default on: normal catalog saves from the latest
+captured shot (either RAW/JPG version) update future captures. Older shots do not.
+Turning the persisted checkbox off restores explicit manual recipe updates.
+
 ## Editing controls
 
 - Crop ratios/free crop, straighten, rotation, flips.

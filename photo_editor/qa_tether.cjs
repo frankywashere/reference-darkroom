@@ -8,6 +8,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright');
  const mock=process.argv.includes('--switch')?{installed:true,connected:false,live:false,devices:[{id:1,name:'Z 8',available:true}],settings:{},session:null,frame_age:null,cursor:0,events:[]}:null;
  if(mock)await page.route('**/api/tether/**',async route=>{
   const req=route.request();if(req.url().includes('/target')&&mock.connected){const id=req.postDataJSON().project_id;mock.session={...mock.session,project_id:id,project_name:'Switched project'};}
+  if(req.url().includes('/auto-look'))mock.auto_look=req.postDataJSON().enabled;
   await route.fulfill({json:mock});
  });
  try{
@@ -19,7 +20,12 @@ const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright');
    const second=await page.evaluate(async()=>{const p=await projectRequest('/api/projects',{name:'Switched project'});await useProject(p);return p.project_id});
    if(mock.session.project_id!==second||!mock.live)throw Error('Project switch failed or stopped live view');
    await page.waitForFunction(()=>document.querySelector('#tetherSession').textContent.includes('Switched project'));
+   if(!await page.locator('#tetherAutoLook').isChecked())throw Error('Automatic look must default on');
+   await page.locator('#tetherAutoLook').uncheck();await page.waitForFunction(()=>!document.querySelector('#tetherUpdateLook').hidden);
+   if(mock.auto_look!==false)throw Error('Automatic look preference was not sent');
+   await page.locator('#tetherAutoLook').check();await page.waitForFunction(()=>document.querySelector('#tetherUpdateLook').hidden);
    console.log('Project switch follows selection without reconnecting: PASS');
+   console.log('Default-on automatic look checkbox / manual mode: PASS');
   }
   if(process.argv.includes('--hardware')){
    await page.click('#tetherConnect');await page.waitForFunction(()=>!document.querySelector('#tetherImage').hidden,{timeout:30000});

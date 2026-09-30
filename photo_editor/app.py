@@ -327,6 +327,7 @@ def save_project(req: SaveProjectRequest) -> dict[str, bool]:
     if req.project_id:
         try:
             catalog.save_edits(req.project_id, req.photos, req.selected)
+            tether.sync_saved_edits(req.project_id, req.photos, req.selected)
         except (ValueError, OSError) as exc:
             raise HTTPException(409, f'Catalog could not be saved: {exc}')
         return {'saved': True}

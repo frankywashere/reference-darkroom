@@ -38,9 +38,17 @@ rendering and catalog threads.
    assigned to their earlier project; RAW/JPG siblings stay together. Previous
    shots are not moved. The active starting look is retained until explicitly
    updated. The receiving project and physical folder remain displayed.
-9. **Use current look for next captures** updates subsequent arrivals. Existing
-   photographs keep their own recipes. This transfers global color/tone/detail
-   settings; cropping, rotation, masks, and cloned pixels start independently.
+9. **Auto-apply latest capture's edits to incoming photos** defaults on and
+   remembers your choice across app restarts. Saving edits to the latest captured
+   shot updates the starting look automatically, even with the Tether window
+   hidden. Either RAW/JPG version of that latest shot can supply the look; editing
+   an older shot or another project's photo does not change it. Remote Capture
+   waits for queued editor saves. A body-shutter shot uses the look saved before
+   its transfer starts; files already transferring retain their starting recipe.
+   Existing photographs are not batch-updated. Only global color/tone/detail
+   settings transfer; crops, rotation, masks, and cloned pixels stay separate.
+   Switching automatic mode off freezes the current starting look and reveals
+   **Use current look for next captures** for explicit manual updates.
 
 Supported camera-provided options appear for ISO, shutter speed, aperture, and
 exposure mode when the SDK supplies a supported values list. Use **Settings** to
@@ -120,7 +128,7 @@ Hardware verification on 2026-09-30 used the connected Z8: live view delivered
 640 × 424 frames; two consecutive remote exposures in one session transferred
 approximately 54 MB lossless NEFs, decoded at 8280 × 5520 into the GPU editor,
 and remained available after reopening the catalog. `--repeat` requests the
-second real exposure. The automated suite covers 58 tests, including safe
+second real exposure. The automated suite covers 64 tests, including safe
 disconnected-helper behavior. This does not establish autofocus accuracy,
 portrait live-view orientation, every camera release mode, or High Efficiency
 NEF compatibility.
@@ -129,3 +137,6 @@ NEF compatibility.
 backend to check that creating a project updates the live target without a
 disconnect. Unit tests cover future routing, in-flight transfer retention, and
 RAW/JPG sibling routing across a switch.
+It also checks the default-on automatic-look checkbox and its manual-mode button.
+Unit tests verify next-capture recipe inheritance, older-shot exclusion, RAW/JPG
+version eligibility, exclusion of spatial retouching, and preference persistence.
